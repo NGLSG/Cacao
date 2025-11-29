@@ -1,0 +1,43 @@
+# 忽略 JetBrains IDE 的特定项目配置目录
+# 此目录包含项目的个人工作空间设置 [citation:8]
+.idea/
+
+# 忽略 CLion 自动生成的 CMake 构建目录 [citation:4]
+# 这些目录通常以 cmake-build- 为前缀，包含临时构建文件和缓存
+cmake-build-*/
+
+# 忽略可执行文件
+*.exe
+*.app
+
+# 忽略动态库文件
+*.dll  # Windows 动态库
+*.so   # Linux 动态库
+*.dylib # macOS 动态库
+*.lib  # 静态库文件（Windows）
+*.a    # 静态库文件（Linux/macOS）
+
+# 忽略调试符号文件
+*.pdb
+*.dSYM/
+
+# 忽略日志文件
+*.log
+
+# 忽略编译产物
+*.o
+*.obj
+
+# 忽略 CMake 的临时文件和缓存
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+*.cmake
+!*.cmake.in
+Makefile
+
+# 忽略可能包含生成代码或本地构建设置的目录
+build/
+out/
+bin/
