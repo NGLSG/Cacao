@@ -1,9 +1,7 @@
 #include "SynchronizationContext.h"
-
 #include "VkContext.h"
 SynchronizationContext::SynchronizationContext() = default;
 SynchronizationContext::~SynchronizationContext() = default;
-
 std::shared_ptr<SynchronizationContext> SynchronizationContext::Create(const std::shared_ptr<VkContext>& context,
                                                                        uint32_t maxFramesInFlight)
 {
@@ -14,7 +12,6 @@ std::shared_ptr<SynchronizationContext> SynchronizationContext::Create(const std
     }
     return syncContext;
 }
-
 bool SynchronizationContext::Initialize(const std::shared_ptr<VkContext>& context, uint32_t maxFramesInFlight)
 {
     m_maxFramesInFlight = maxFramesInFlight;
@@ -32,7 +29,6 @@ bool SynchronizationContext::Initialize(const std::shared_ptr<VkContext>& contex
     }
     return true;
 }
-
 void SynchronizationContext::WaitForFrame(uint32_t frameIndex)
 {
     if (m_vkContext->GetDevice().waitForFences(1, &m_inFlightFences[frameIndex], VK_TRUE, UINT64_MAX) !=
@@ -41,7 +37,6 @@ void SynchronizationContext::WaitForFrame(uint32_t frameIndex)
         throw std::runtime_error("Waiting for fence failed");
     }
 }
-
 void SynchronizationContext::ResetFrameFence(uint32_t frameIndex)
 {
     if (m_vkContext->GetDevice().resetFences(1, &m_inFlightFences[frameIndex]) != vk::Result::eSuccess)
@@ -49,23 +44,19 @@ void SynchronizationContext::ResetFrameFence(uint32_t frameIndex)
         throw std::runtime_error("Resetting fence failed");
     }
 }
-
 uint32_t SynchronizationContext::AcquireNextImageIndex(uint32_t frameIndex) const
 {
     return m_vkContext->GetDevice().acquireNextImageKHR(
         m_vkContext->GetSwapChain(), UINT64_MAX, m_imageAvailableSemaphores[frameIndex], nullptr).value;
 }
-
 vk::Semaphore& SynchronizationContext::GetImageSemaphore(uint32_t frameIndex)
 {
     return m_imageAvailableSemaphores[frameIndex];
 }
-
 vk::Semaphore& SynchronizationContext::GetRenderSemaphore(uint32_t frameIndex)
 {
     return m_renderFinishedSemaphores[frameIndex];
 }
-
 vk::Fence& SynchronizationContext::GetInFlightFence(uint32_t frameIndex)
 {
     return m_inFlightFences[frameIndex];

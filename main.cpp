@@ -318,7 +318,6 @@ int main()
         submit.pSignalSemaphores = &syncContext->GetRenderSemaphore(frame);
 
         graphicsQueue.submit(submit, syncContext->GetInFlightFence(frame));
-
         vk::PresentInfoKHR present{};
         present.waitSemaphoreCount = 1;
         present.pWaitSemaphores = &syncContext->GetRenderSemaphore(frame);

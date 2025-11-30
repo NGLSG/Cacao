@@ -1,0 +1,284 @@
+#include "Impls/Vulkan/VKSwapchain.h"
+#include "CacaoAdapter.h"
+#include "CacaoSynchronization.h"
+#include "Impls/Vulkan/VKAdapter.h"
+#include "Impls/Vulkan/VKDevice.h"
+#include "Impls/Vulkan/VKSurface.h"
+#include "Impls/Vulkan/VKSynchronization.h"
+#include "Impls/Vulkan/VKTexture.h"
+#include "Impls/Vulkan/VKQueue.h"
+namespace Cacao
+{
+    Ref<VKSwapchain> VKSwapchain::Create(const Ref<CacaoDevice>& device, const SwapchainCreateInfo& createInfo)
+    {
+        return CreateRef<VKSwapchain>(device, createInfo);
+    }
+    VKSwapchain::VKSwapchain(const Ref<CacaoDevice>& device, const SwapchainCreateInfo& createInfo) :
+        m_device(std::dynamic_pointer_cast<VKDevice>(device)),
+        m_swapchainCreateInfo(createInfo)
+    {
+        if (!device)
+        {
+            throw std::runtime_error("VKSwapchain created with null device");
+        }
+        if (!createInfo.CompatibleSurface)
+        {
+            throw std::runtime_error("VKSwapchain created with null compatible surface");
+        }
+        auto pyDevice = m_device->GetVulkanDevice();
+        vk::SwapchainCreateInfoKHR swapchainCreateInfo{};
+        switch (createInfo.PresentMode)
+        {
+        case PresentMode::Immediate:
+            swapchainCreateInfo.presentMode = vk::PresentModeKHR::eImmediate;
+            break;
+        case PresentMode::Mailbox:
+            swapchainCreateInfo.presentMode = vk::PresentModeKHR::eMailbox;
+            break;
+        case PresentMode::Fifo:
+            swapchainCreateInfo.presentMode = vk::PresentModeKHR::eFifo;
+            break;
+        case PresentMode::FifoRelaxed:
+            swapchainCreateInfo.presentMode = vk::PresentModeKHR::eFifoRelaxed;
+            break;
+        default:
+            swapchainCreateInfo.presentMode = vk::PresentModeKHR::eFifo;
+            break;
+        }
+        switch (createInfo.Format)
+        {
+        case Format::RGBA8_UNORM:
+            swapchainCreateInfo.imageFormat = vk::Format::eR8G8B8A8Unorm;
+            break;
+        case Format::BGRA8_UNORM:
+            swapchainCreateInfo.imageFormat = vk::Format::eB8G8R8A8Unorm;
+            break;
+        case Format::RGBA8_SRGB:
+            swapchainCreateInfo.imageFormat = vk::Format::eR8G8B8A8Srgb;
+            break;
+        case Format::BGRA8_SRGB:
+            swapchainCreateInfo.imageFormat = vk::Format::eB8G8R8A8Srgb;
+            break;
+        default:
+            swapchainCreateInfo.imageFormat = vk::Format::eB8G8R8A8Unorm;
+            break;
+        }
+        switch (createInfo.ColorSpace)
+        {
+        case ColorSpace::SRGB_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+            break;
+        case ColorSpace::LINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eExtendedSrgbLinearEXT;
+            break;
+        case ColorSpace::HDR10_ST2084:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eHdr10St2084EXT;
+            break;
+        default:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+            break;
+        }
+        switch (createInfo.CompositeAlpha)
+        {
+        case CompositeAlpha::Opaque:
+            swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+            break;
+        case CompositeAlpha::Inherit:
+            swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eInherit;
+            break;
+        case CompositeAlpha::PreMultiplied:
+            swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::ePreMultiplied;
+            break;
+        case CompositeAlpha::PostMultiplied:
+            swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::ePostMultiplied;
+            break;
+        default:
+            swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+            break;
+        }
+        vk::ImageUsageFlags imageUsage;
+        if (createInfo.Usage & SwapchainUsageFlags::ColorAttachment)
+        {
+            imageUsage |= vk::ImageUsageFlagBits::eColorAttachment;
+        }
+        if (createInfo.Usage & SwapchainUsageFlags::TransferSrc)
+        {
+            imageUsage |= vk::ImageUsageFlagBits::eTransferSrc;
+        }
+        if (createInfo.Usage & SwapchainUsageFlags::TransferDst)
+        {
+            imageUsage |= vk::ImageUsageFlagBits::eTransferDst;
+        }
+        if (createInfo.Usage & SwapchainUsageFlags::Storage)
+        {
+            imageUsage |= vk::ImageUsageFlagBits::eStorage;
+        }
+        swapchainCreateInfo.imageUsage = imageUsage;
+        swapchainCreateInfo.minImageCount = createInfo.MinImageCount;
+        swapchainCreateInfo.imageExtent = vk::Extent2D{createInfo.Extent.width, createInfo.Extent.height};
+        vk::SurfaceTransformFlagBitsKHR preTransform;
+        switch (createInfo.PreTransform.rotation)
+        {
+        case SurfaceRotation::Identity:
+            preTransform = vk::SurfaceTransformFlagBitsKHR::eIdentity;
+            break;
+        case SurfaceRotation::Rotate90:
+            preTransform = vk::SurfaceTransformFlagBitsKHR::eRotate90;
+            break;
+        case SurfaceRotation::Rotate180:
+            preTransform = vk::SurfaceTransformFlagBitsKHR::eRotate180;
+            break;
+        case SurfaceRotation::Rotate270:
+            preTransform = vk::SurfaceTransformFlagBitsKHR::eRotate270;
+            break;
+        default:
+            preTransform = vk::SurfaceTransformFlagBitsKHR::eIdentity;
+            break;
+        }
+        swapchainCreateInfo.preTransform = preTransform;
+        swapchainCreateInfo.clipped = createInfo.Clipped;
+        std::vector<uint32_t> queueFamilyIndices;
+        vk::SharingMode sharingMode;
+        uint32_t graphicsFamily = m_device->GetParentAdapter()->FindQueueFamilyIndex(QueueType::Graphics);
+        uint32_t presentFamily = std::dynamic_pointer_cast<VKSurface>(createInfo.CompatibleSurface)->
+            GetPresentQueueFamilyIndex(device->GetParentAdapter());
+        if (graphicsFamily != presentFamily)
+        {
+            sharingMode = vk::SharingMode::eConcurrent;
+            queueFamilyIndices.push_back(graphicsFamily);
+            queueFamilyIndices.push_back(presentFamily);
+            swapchainCreateInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
+            swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+        }
+        else
+        {
+            sharingMode = vk::SharingMode::eExclusive;
+        }
+        swapchainCreateInfo.imageSharingMode = sharingMode;
+        swapchainCreateInfo.surface = std::dynamic_pointer_cast<VKSurface>(createInfo.CompatibleSurface)->
+            GetVulkanSurface();
+        m_swapchain = pyDevice.createSwapchainKHR(swapchainCreateInfo);
+        if (!m_swapchain)
+        {
+            throw std::runtime_error("Failed to create Vulkan swapchain");
+        }
+        m_images = pyDevice.getSwapchainImagesKHR(m_swapchain);
+        for (const auto& image : m_images)
+        {
+            vk::ImageViewCreateInfo ivci{};
+            ivci.image = image;
+            ivci.viewType = vk::ImageViewType::e2D;
+            ivci.format = swapchainCreateInfo.imageFormat;
+            ivci.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+            ivci.subresourceRange.levelCount = 1;
+            ivci.subresourceRange.layerCount = 1;
+            vk::ImageView imageView = pyDevice.createImageView(ivci);
+            m_imageViews.push_back(imageView);
+        }
+    }
+    Result VKSwapchain::Present(const Ref<CacaoQueue>& queue,
+                                const Ref<CacaoSynchronization>& sync, uint32_t frameIndex)
+    {
+        vk::PresentInfoKHR present{};
+        auto vkContext = std::dynamic_pointer_cast<VKDevice>(m_device);
+        auto syncContext = std::dynamic_pointer_cast<VKSynchronization>(sync);
+        auto vkQueue = std::static_pointer_cast<VKQueue>(queue);
+        present.waitSemaphoreCount = 1;
+        present.pWaitSemaphores = &syncContext->GetRenderSemaphore(frameIndex);
+        present.swapchainCount = 1;
+        present.pSwapchains = &m_swapchain;
+        present.pImageIndices = &frameIndex;
+        try
+        {
+            auto res = vkQueue->GetVulkanQueue().presentKHR(present);
+            switch (res)
+            {
+            case vk::Result::eSuccess:
+                return Result::Success;
+            case vk::Result::eSuboptimalKHR:
+                return Result::Suboptimal;
+            case vk::Result::eTimeout:
+                return Result::Timeout;
+            case vk::Result::eNotReady:
+                return Result::NotReady;
+            case vk::Result::eErrorOutOfDateKHR:
+                return Result::OutOfDate;
+            case vk::Result::eErrorDeviceLost:
+                return Result::DeviceLost;
+            default:
+                return Result::Error;
+            }
+        }
+        catch (vk::OutOfDateKHRError)
+        {
+            return Result::OutOfDate;
+        }
+        catch (vk::DeviceLostError)
+        {
+            return Result::DeviceLost;
+        }
+        catch (...)
+        {
+            return Result::Error;
+        }
+    }
+    uint32_t VKSwapchain::GetImageCount() const
+    {
+        return m_images.size();
+    }
+    Ref<CacaoTexture> VKSwapchain::GetBackBuffer(uint32_t index) const
+    {
+        TextureCreateInfo info{};
+        info.Type = TextureType::Texture2D;
+        info.Width = m_swapchainCreateInfo.Extent.width;
+        info.Height = m_swapchainCreateInfo.Extent.height;
+        info.Depth = 1;
+        info.ArrayLayers = 1;
+        info.MipLevels = 1;
+        info.Format = m_swapchainCreateInfo.Format;
+        TextureUsageFlags usage = {};
+        if (m_swapchainCreateInfo.Usage & SwapchainUsageFlags::ColorAttachment)
+        {
+            usage |= TextureUsageFlags::ColorAttachment;
+        }
+        if (m_swapchainCreateInfo.Usage & SwapchainUsageFlags::TransferSrc)
+        {
+            usage |= TextureUsageFlags::TransferSrc;
+        }
+        if (m_swapchainCreateInfo.Usage & SwapchainUsageFlags::TransferDst)
+        {
+            usage |= TextureUsageFlags::TransferDst;
+        }
+        if (m_swapchainCreateInfo.Usage & SwapchainUsageFlags::Storage)
+        {
+            usage |= TextureUsageFlags::Storage;
+        }
+        info.Usage = usage;
+        info.InitialLayout = ImageLayout::Undefined;
+        info.SampleCount = SampleCount::Count1;
+        info.Name = "SwapchainBackBuffer";
+        info.InitialData = nullptr;
+        return VKTexture::CreateFromSwapchainImage(m_images[index], m_imageViews[index], info);
+    }
+    Extent2D VKSwapchain::GetExtent() const
+    {
+        return m_swapchainCreateInfo.Extent;
+    }
+    Format VKSwapchain::GetFormat() const
+    {
+        return m_swapchainCreateInfo.Format;
+    }
+    PresentMode VKSwapchain::GetPresentMode() const
+    {
+        return m_swapchainCreateInfo.PresentMode;
+    }
+    Result VKSwapchain::AcquireNextImage(const Ref<CacaoSynchronization>& sync, int& out)
+    {
+        if (!sync)
+        {
+            return Result::Error;
+        }
+        out = sync->AcquireNextImageIndex(shared_from_this(), 0);
+        return Result::Success;
+    }
+} 

@@ -1,5 +1,4 @@
 #include "VkContext.h"
-
 bool VkContext::createInstance()
 {
     vk::ApplicationInfo appInfo = vk::ApplicationInfo()
@@ -47,7 +46,6 @@ bool VkContext::createInstance()
     }
     return true;
 }
-
 bool VkContext::pickPhysicalDevice()
 {
     auto devices = m_instance.enumeratePhysicalDevices();
@@ -59,7 +57,6 @@ bool VkContext::pickPhysicalDevice()
     m_physicalDevice = devices[0];
     return true;
 }
-
 bool VkContext::createSurface()
 {
 #ifdef WIN32
@@ -68,7 +65,6 @@ bool VkContext::createSurface()
         setHinstance(
             m_graphicsContextCreateInfo.nativeWindowHandle.hInstance);
 #endif
-
     m_surface = m_instance.createWin32SurfaceKHR(surfaceCreateInfo);
     if (!m_surface)
     {
@@ -77,11 +73,9 @@ bool VkContext::createSurface()
     }
     return true;
 }
-
 bool VkContext::createDevice()
 {
     auto queueFamilies = m_physicalDevice.getQueueFamilyProperties();
-
     int idx = 0;
     for (auto& queueFamily : queueFamilies)
     {
@@ -139,18 +133,14 @@ bool VkContext::createDevice()
     m_presentQueue = m_device.getQueue(presentFamily, 0);
     return true;
 }
-
 bool VkContext::createSwapChain()
 {
     vk::SurfaceCapabilitiesKHR capabilities =
         m_physicalDevice.getSurfaceCapabilitiesKHR(m_surface);
-
     std::vector<vk::SurfaceFormatKHR> formats =
         m_physicalDevice.getSurfaceFormatsKHR(m_surface);
-
     std::vector<vk::PresentModeKHR> presentModes =
         m_physicalDevice.getSurfacePresentModesKHR(m_surface);
-
     for (auto& format : formats)
     {
         if (format.format == vk::Format::eB8G8R8A8Unorm &&
@@ -227,13 +217,10 @@ bool VkContext::createSwapChain()
         ivci.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         ivci.subresourceRange.levelCount = 1;
         ivci.subresourceRange.layerCount = 1;
-
         m_swapChainImageViews.push_back(m_device.createImageView(ivci));
     }
-
     return true;
 }
-
 void VkContext::recreateSwapChain()
 {
     m_device.waitIdle();
@@ -244,10 +231,8 @@ void VkContext::recreateSwapChain()
     m_device.destroySwapchainKHR(m_swapChain);
     createSwapChain();
 }
-
 VkContext::VkContext() = default;
 VkContext::~VkContext() = default;
-
 std::shared_ptr<VkContext> VkContext::Create(const GraphicsContextCreateInfo& createInfo)
 {
     auto context = std::make_shared<VkContext>();
@@ -257,7 +242,6 @@ std::shared_ptr<VkContext> VkContext::Create(const GraphicsContextCreateInfo& cr
     }
     return context;
 }
-
 bool VkContext::Initialize(const GraphicsContextCreateInfo& createInfo)
 {
     m_graphicsContextCreateInfo = createInfo;
@@ -283,44 +267,36 @@ bool VkContext::Initialize(const GraphicsContextCreateInfo& createInfo)
     }
     return true;
 }
-
 void VkContext::Resize(uint32_t width, uint32_t height)
 {
     m_graphicsContextCreateInfo.windowSize.width = width;
     m_graphicsContextCreateInfo.windowSize.height = height;
     recreateSwapChain();
 }
-
 vk::Queue& VkContext::GetGraphicsQueue()
 {
     return m_graphicsQueue;
 }
-
 vk::Queue& VkContext::GetPresentQueue()
 {
     return m_presentQueue;
 }
-
 vk::SwapchainKHR& VkContext::GetSwapChain()
 {
     return m_swapChain;
 }
-
 vk::Device& VkContext::GetDevice()
 {
     return m_device;
 }
-
 vk::SurfaceFormatKHR& VkContext::GetSurfaceFormat()
 {
     return m_surfaceFormat;
 }
-
 vk::Extent2D VkContext::GetSwapChainExtent() const
 {
     return {m_graphicsContextCreateInfo.windowSize.width, m_graphicsContextCreateInfo.windowSize.height};
 }
-
 void VkContext::WaitIdle()
 {
     m_device.waitIdle();
