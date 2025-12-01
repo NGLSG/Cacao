@@ -20,10 +20,7 @@ namespace Cacao
         VmaAllocationInfo m_allocationInfo;
         friend class VKDevice;
         friend class VKCommandBufferEncoder;
-        vk::Buffer& GetVulkanBuffer()
-        {
-            return m_buffer;
-        }
+        friend class VKDescriptorSet;
     public:
         VKBuffer(const Ref<CacaoDevice>& device, const VmaAllocator& allocator, const BufferCreateInfo& info);
         static Ref<VKBuffer> Create(const Ref<CacaoDevice>& device, const VmaAllocator& allocator,
@@ -35,7 +32,11 @@ namespace Cacao
         void Unmap() override;
         void Flush(uint64_t offset, uint64_t size) override;
         uint64_t GetDeviceAddress() const override;
+        vk::Buffer& GetHandle()
+        {
+            return m_buffer;
+        }
     };
 }
 ;
-#endif 
+#endif

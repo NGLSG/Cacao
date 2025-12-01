@@ -2,6 +2,10 @@
 #define CACAO_CACAOINSTANCE_H
 namespace Cacao
 {
+    class CacaoShaderCompiler;
+}
+namespace Cacao
+{
     class CacaoSurface;
 }
 namespace Cacao
@@ -10,25 +14,25 @@ namespace Cacao
     struct NativeWindowHandle
     {
 #if defined(_WIN32)
-        void* hWnd = nullptr; 
-        void* hInst = nullptr; 
+        void* hWnd = nullptr;
+        void* hInst = nullptr;
 #elif defined(__APPLE__)
-        void* metalLayer = nullptr; 
+        void* metalLayer = nullptr;
 #elif defined(__linux__) && !defined(__ANDROID__)
 #if defined(USE_WAYLAND)
-        wl_display* wlDisplay = nullptr; 
-        wl_surface* wlSurface = nullptr; 
+        wl_display* wlDisplay = nullptr;
+        wl_surface* wlSurface = nullptr;
 #elif defined(USE_XCB)
-        xcb_connection_t* xcbConnection = nullptr; 
-        xcb_window_t xcbWindow = 0; 
+        xcb_connection_t* xcbConnection = nullptr;
+        xcb_window_t xcbWindow = 0;
 #elif defined(USE_XLIB)
-        Display* x11Display = nullptr; 
-        Window x11Window = 0; 
+        Display* x11Display = nullptr;
+        Window x11Window = 0;
 #endif
 #elif defined(__ANDROID__)
-        void* aNativeWindow = nullptr; 
+        void* aNativeWindow = nullptr;
 #else
-        void* placeholder = nullptr; 
+        void* placeholder = nullptr;
 #endif
         bool IsValid() const
         {
@@ -59,6 +63,7 @@ namespace Cacao
         Metal,
         OpenGL,
         OpenGLES,
+        WebGPU,
     };
     enum class CacaoInstanceFeature
     {
@@ -75,7 +80,7 @@ namespace Cacao
         uint32_t appVersion = 1;
         std::vector<CacaoInstanceFeature> enabledFeatures;
     };
-    class CACAO_API CacaoInstance: public std::enable_shared_from_this<CacaoInstance>
+    class CACAO_API CacaoInstance : public std::enable_shared_from_this<CacaoInstance>
     {
     public:
         virtual ~CacaoInstance() = default;
@@ -85,6 +90,7 @@ namespace Cacao
         virtual std::vector<Ref<CacaoAdapter>> EnumerateAdapters() = 0;
         virtual bool IsFeatureEnabled(CacaoInstanceFeature feature) const = 0;
         virtual Ref<CacaoSurface> CreateSurface(const NativeWindowHandle& windowHandle) = 0;
+        virtual Ref<CacaoShaderCompiler> CreateShaderCompiler() = 0;
     };
     template <>
     struct to_string<CacaoType>
@@ -133,4 +139,4 @@ namespace Cacao
         }
     };
 }
-#endif 
+#endif

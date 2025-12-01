@@ -2,6 +2,7 @@
 #include "CacaoAdapter.h"
 #include "CacaoSynchronization.h"
 #include "Impls/Vulkan/VKAdapter.h"
+#include "Impls/Vulkan/VKConvert.h"
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKSurface.h"
 #include "Impls/Vulkan/VKSynchronization.h"
@@ -25,8 +26,9 @@ namespace Cacao
         {
             throw std::runtime_error("VKSwapchain created with null compatible surface");
         }
-        auto pyDevice = m_device->GetVulkanDevice();
+        auto pyDevice = m_device->GetHandle();
         vk::SwapchainCreateInfoKHR swapchainCreateInfo{};
+        swapchainCreateInfo.imageArrayLayers = createInfo.ImageArrayLayers;
         switch (createInfo.PresentMode)
         {
         case PresentMode::Immediate:
@@ -45,24 +47,7 @@ namespace Cacao
             swapchainCreateInfo.presentMode = vk::PresentModeKHR::eFifo;
             break;
         }
-        switch (createInfo.Format)
-        {
-        case Format::RGBA8_UNORM:
-            swapchainCreateInfo.imageFormat = vk::Format::eR8G8B8A8Unorm;
-            break;
-        case Format::BGRA8_UNORM:
-            swapchainCreateInfo.imageFormat = vk::Format::eB8G8R8A8Unorm;
-            break;
-        case Format::RGBA8_SRGB:
-            swapchainCreateInfo.imageFormat = vk::Format::eR8G8B8A8Srgb;
-            break;
-        case Format::BGRA8_SRGB:
-            swapchainCreateInfo.imageFormat = vk::Format::eB8G8R8A8Srgb;
-            break;
-        default:
-            swapchainCreateInfo.imageFormat = vk::Format::eB8G8R8A8Unorm;
-            break;
-        }
+        swapchainCreateInfo.imageFormat = Converter::Convert(createInfo.Format);
         switch (createInfo.ColorSpace)
         {
         case ColorSpace::SRGB_NONLINEAR:
@@ -272,13 +257,33 @@ namespace Cacao
     {
         return m_swapchainCreateInfo.PresentMode;
     }
-    Result VKSwapchain::AcquireNextImage(const Ref<CacaoSynchronization>& sync, int& out)
+    Result VKSwapchain::AcquireNextImage(const Ref<CacaoSynchronization>& sync, int idx, int& out)
     {
         if (!sync)
         {
             return Result::Error;
         }
-        out = sync->AcquireNextImageIndex(shared_from_this(), 0);
+        out = sync->AcquireNextImageIndex(shared_from_this(), idx);
         return Result::Success;
     }
-} 
+    VKSwapchain::~VKSwapchain()
+    {
+        if (m_device)
+        {
+            auto deviceHandle = m_device->GetHandle();
+            for (auto& imageView : m_imageViews)
+            {
+                if (imageView)
+                {
+                    deviceHandle.destroyImageView(imageView);
+                }
+            }
+            m_imageViews.clear();
+            if (m_swapchain)
+            {
+                deviceHandle.destroySwapchainKHR(m_swapchain);
+                m_swapchain = nullptr;
+            }
+        }
+    }
+}

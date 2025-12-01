@@ -2,6 +2,7 @@
 #define CACAO_VKSYNCHRONIZATION_H
 #include "CacaoSynchronization.h"
 #include <vulkan/vulkan.hpp>
+#include "CacaoDevice.h"
 namespace Cacao
 {
     class VKDevice;
@@ -19,12 +20,13 @@ namespace Cacao
         vk::Semaphore& GetRenderSemaphore(uint32_t frameIndex);
         vk::Fence& GetInFlightFence(uint32_t frameIndex);
     public:
-        static Ref<VKSynchronization> Create(const Ref<VKDevice>& device, uint32_t maxFramesInFlight);
-        VKSynchronization(const Ref<VKDevice>& device, uint32_t maxFramesInFlight);
+        static Ref<VKSynchronization> Create(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight);
+        VKSynchronization(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight);
         void WaitForFrame(uint32_t frameIndex) const override;
         void ResetFrameFence(uint32_t frameIndex) const override;
         uint32_t AcquireNextImageIndex(const Ref<CacaoSwapchain>& swapchain, uint32_t frameIndex) const override;
         uint32_t GetMaxFramesInFlight() const override;
+        ~VKSynchronization () override;
     };
 } 
 #endif 

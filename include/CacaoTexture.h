@@ -8,7 +8,7 @@ namespace Cacao
         Texture1D,
         Texture2D,
         Texture3D,
-        TextureCube, 
+        TextureCube,
         Texture1DArray,
         Texture2DArray,
         TextureCubeArray
@@ -16,14 +16,14 @@ namespace Cacao
     enum class TextureUsageFlags : uint32_t
     {
         None = 0,
-        TransferSrc = 1 << 0, 
-        TransferDst = 1 << 1, 
-        Sampled = 1 << 2, 
-        Storage = 1 << 3, 
-        ColorAttachment = 1 << 4, 
-        DepthStencilAttachment = 1 << 5, 
-        TransientAttachment = 1 << 6, 
-        InputAttachment = 1 << 7 
+        TransferSrc = 1 << 0,
+        TransferDst = 1 << 1,
+        Sampled = 1 << 2,
+        Storage = 1 << 3,
+        ColorAttachment = 1 << 4,
+        DepthStencilAttachment = 1 << 5,
+        TransientAttachment = 1 << 6,
+        InputAttachment = 1 << 7
     };
     inline TextureUsageFlags operator|(TextureUsageFlags a, TextureUsageFlags b)
     {
@@ -53,9 +53,9 @@ namespace Cacao
         TextureType Type = TextureType::Texture2D;
         uint32_t Width = 1;
         uint32_t Height = 1;
-        uint32_t Depth = 1; 
-        uint32_t ArrayLayers = 1; 
-        uint32_t MipLevels = 1; 
+        uint32_t Depth = 1;
+        uint32_t ArrayLayers = 1;
+        uint32_t MipLevels = 1;
         Format Format = Format::RGBA8_UNORM;
         TextureUsageFlags Usage = TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
         ImageLayout InitialLayout = ImageLayout::Undefined;
@@ -63,7 +63,50 @@ namespace Cacao
         std::string Name;
         void* InitialData = nullptr;
     };
-    class CACAO_API CacaoTexture
+    enum class AspectMask : uint32_t
+    {
+        Color = 1 << 0,
+        Depth = 1 << 1,
+        Stencil = 1 << 2,
+        DepthStencil = Depth | Stencil
+    };
+    inline AspectMask operator|(AspectMask a, AspectMask b)
+    {
+        return static_cast<AspectMask>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    }
+    inline AspectMask& operator|=(AspectMask& a, AspectMask b)
+    {
+        a = a | b;
+        return a;
+    }
+    inline bool operator!(AspectMask a)
+    {
+        return static_cast<uint32_t>(a) == 0;
+    }
+    inline bool operator &(AspectMask a, AspectMask b)
+    {
+        return (static_cast<uint32_t>(a) & static_cast<uint32_t>(b)) != 0;
+    }
+    struct TextureViewDesc
+    {
+        TextureType ViewType = TextureType::Texture2D; 
+        Format FormatOverride = Format::UNDEFINED; 
+        uint32_t BaseMipLevel = 0;
+        uint32_t MipLevelCount = 1;
+        uint32_t BaseArrayLayer = 0;
+        uint32_t ArrayLayerCount = 1;
+        AspectMask Aspect = AspectMask::Color; 
+        std::string Name;
+    };
+    class CACAO_API CacaoTexture;
+    class CACAO_API CacaoTextureView : public std::enable_shared_from_this<CacaoTextureView>
+    {
+    public:
+        virtual Ref<CacaoTexture> GetTexture() const = 0;
+        virtual const TextureViewDesc& GetDesc() const = 0;
+        virtual ~CacaoTextureView() = default;
+    };
+    class CACAO_API CacaoTexture : public std::enable_shared_from_this<CacaoTexture>
     {
     public:
         virtual ~CacaoTexture() = default;
@@ -77,6 +120,9 @@ namespace Cacao
         virtual SampleCount GetSampleCount() const = 0;
         virtual TextureUsageFlags GetUsage() const = 0;
         virtual ImageLayout GetCurrentLayout() const = 0;
+        virtual Ref<CacaoTextureView> CreateView(const TextureViewDesc& desc) = 0;
+        virtual Ref<CacaoTextureView> GetDefaultView() = 0;
+        virtual void CreateDefaultViewIfNeeded() = 0;
         bool IsDepthStencil() const
         {
             return IsDepthFormat(GetFormat()) || IsStencilFormat(GetFormat());
@@ -94,4 +140,4 @@ namespace Cacao
         }
     };
 }
-#endif 
+#endif

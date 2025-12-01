@@ -1,6 +1,7 @@
 #include <Impls/Vulkan/VKInstance.h>
 #include <Impls/Vulkan/VKAdapter.h>
 #include <Impls/Vulkan/VKSurface.h>
+#include "CacaoShaderCompiler.h"
 namespace Cacao
 {
     CacaoType VKInstance::GetType() const
@@ -172,5 +173,9 @@ namespace Cacao
             throw std::runtime_error("Vulkan Surface 创建失败：返回了空句柄。");
         }
         return Cacao::CreateRef<VKSurface>(surface);
+    }
+    Ref<CacaoShaderCompiler> VKInstance::CreateShaderCompiler()
+    {
+        return CacaoShaderCompiler::Create(CacaoType::Vulkan);
     }
 }

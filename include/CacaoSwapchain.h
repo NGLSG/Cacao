@@ -48,6 +48,7 @@ namespace Cacao
         SwapchainUsageFlags Usage = SwapchainUsageFlags::ColorAttachment;
         bool Clipped = true;
         Ref<CacaoSurface> CompatibleSurface = nullptr;
+        uint32_t ImageArrayLayers = 1;
     };
     enum class Result
     {
@@ -72,7 +73,7 @@ namespace Cacao
         virtual Extent2D GetExtent() const = 0;
         virtual Format GetFormat() const = 0;
         virtual PresentMode GetPresentMode() const = 0;
-        virtual Result AcquireNextImage(const Ref<CacaoSynchronization>& sync, int& out) = 0;
+        virtual Result AcquireNextImage(const Ref<CacaoSynchronization>& sync, int idx, int& out) = 0;
     };
 }
 #endif 

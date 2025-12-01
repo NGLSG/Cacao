@@ -3,7 +3,11 @@
 #include "CacaoTexture.h"
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKDevice.h"
+#include "Impls/Vulkan/VKPipeline.h"
 #include "Impls/Vulkan/VKTexture.h"
+#include "Impls/Vulkan/VKPipelineLayout.h"
+#include "Impls/Vulkan/VKSampler.h"
+#include "Impls/Vulkan/VKDescriptorSet.h"
 namespace Cacao
 {
     namespace
@@ -16,53 +20,53 @@ namespace Cacao
         {
             return format == Format::D24S8;
         }
-        vk::PipelineStageFlags TranslateStageFlags(PipelineStageFlags flags)
+        vk::PipelineStageFlags TranslateStageFlags(PipelineStage flags)
         {
             vk::PipelineStageFlags vkFlags;
-            if (flags == PipelineStageFlags::None) return vk::PipelineStageFlagBits::eTopOfPipe; 
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::TopOfPipe))
+            if (flags == PipelineStage::None) return vk::PipelineStageFlagBits::eTopOfPipe;
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::TopOfPipe))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eTopOfPipe;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::DrawIndirect))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::DrawIndirect))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eDrawIndirect;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::VertexInput))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexInput))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eVertexInput;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::VertexShader))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexShader))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eVertexShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::GeometryShader))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::GeometryShader))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eGeometryShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::FragmentShader))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::FragmentShader))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eFragmentShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::EarlyFragmentTests))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::EarlyFragmentTests))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eEarlyFragmentTests;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::LateFragmentTests))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::LateFragmentTests))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eLateFragmentTests;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::ColorAttachmentOutput))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ColorAttachmentOutput))
                 vkFlags
                     |= vk::PipelineStageFlagBits::eColorAttachmentOutput;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::ComputeShader))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ComputeShader))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eComputeShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::Transfer))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Transfer))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eTransfer;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::BottomOfPipe))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::BottomOfPipe))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eBottomOfPipe;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::Host))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Host))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eHost;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::AllGraphics))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllGraphics))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eAllGraphics;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStageFlags::AllCommands))
+            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllCommands))
                 vkFlags |=
                     vk::PipelineStageFlagBits::eAllCommands;
             return vkFlags;
@@ -141,14 +145,24 @@ namespace Cacao
             default: return vk::ImageLayout::eUndefined;
             }
         }
-        vk::ImageAspectFlags InferAspectFlags(Format format)
+        vk::ImageAspectFlags Convert(ImageAspectFlags iflags)
         {
             vk::ImageAspectFlags flags;
-            bool isDepth = IsDepthFormat(format);
-            bool isStencil = IsStencilFormat(format);
-            if (isDepth) flags |= vk::ImageAspectFlagBits::eDepth;
-            if (isStencil) flags |= vk::ImageAspectFlagBits::eStencil;
-            if (!isDepth && !isStencil) flags |= vk::ImageAspectFlagBits::eColor;
+            if (iflags == ImageAspectFlags::None) return flags;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Color))
+                flags |= vk::ImageAspectFlagBits::eColor;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Depth))
+                flags |= vk::ImageAspectFlagBits::eDepth;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Stencil))
+                flags |= vk::ImageAspectFlagBits::eStencil;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Metadata))
+                flags |= vk::ImageAspectFlagBits::eMetadata;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Plane0))
+                flags |= vk::ImageAspectFlagBits::ePlane0;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Plane1))
+                flags |= vk::ImageAspectFlagBits::ePlane1;
+            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Plane2))
+                flags |= vk::ImageAspectFlagBits::ePlane2;
             return flags;
         }
     }
@@ -159,9 +173,9 @@ namespace Cacao
         std::vector<vk::Format> vkFormats(info.ColorAttachments.size(), vk::Format::eUndefined);
         for (size_t i = 0; i < info.ColorAttachments.size(); i++)
         {
-            if (!info.ColorAttachments[i].ImageView)
+            if (!info.ColorAttachments[i].Texture)
                 continue;
-            switch (info.ColorAttachments[i].ImageView->GetFormat())
+            switch (info.ColorAttachments[i].Texture->GetFormat())
             {
             case Format::RGBA8_UNORM:
                 vkFormats[i] = vk::Format::eR8G8B8A8Unorm;
@@ -196,9 +210,9 @@ namespace Cacao
             }
         }
         vkRenderingInfo.pColorAttachmentFormats = vkFormats.data();
-        if (info.DepthAttachment && info.DepthAttachment->ImageView)
+        if (info.DepthAttachment && info.DepthAttachment->Texture)
         {
-            switch (info.DepthAttachment->ImageView->GetFormat())
+            switch (info.DepthAttachment->Texture->GetFormat())
             {
             case Format::D32F:
                 vkRenderingInfo.depthAttachmentFormat = vk::Format::eD32Sfloat;
@@ -211,9 +225,9 @@ namespace Cacao
                 break;
             }
         }
-        if (info.StencilAttachment && info.StencilAttachment->ImageView)
+        if (info.StencilAttachment && info.StencilAttachment->Texture)
         {
-            switch (info.StencilAttachment->ImageView->GetFormat())
+            switch (info.StencilAttachment->Texture->GetFormat())
             {
             case Format::D32F:
                 vkRenderingInfo.stencilAttachmentFormat = vk::Format::eD32Sfloat;
@@ -243,11 +257,13 @@ namespace Cacao
             vk::RenderingAttachmentInfo& vkAttachment = m_vkColorAttachments[i];
             const RenderingAttachmentInfo& attachment = info.ColorAttachments[i];
             vkAttachment = vk::RenderingAttachmentInfo();
-            if (!attachment.ImageView)
+            if (!attachment.Texture)
                 continue;
-            vkAttachment.imageView = std::dynamic_pointer_cast<VKTexture>(attachment.ImageView)->GetVulkanImageView();
+            vkAttachment.imageView = std::static_pointer_cast<VKTextureView>(
+                    std::static_pointer_cast<VKTexture>(attachment.Texture)->GetDefaultView())->
+                GetHandle();
             vkAttachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-            vkAttachment.resolveMode = vk::ResolveModeFlagBits::eNone; 
+            vkAttachment.resolveMode = vk::ResolveModeFlagBits::eNone;
             switch (attachment.LoadOp)
             {
             case AttachmentLoadOp::Load: vkAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
@@ -276,12 +292,13 @@ namespace Cacao
         }
         vkRenderingInfo.colorAttachmentCount = static_cast<uint32_t>(m_vkColorAttachments.size());
         vkRenderingInfo.pColorAttachments = m_vkColorAttachments.data();
-        if (info.DepthAttachment && info.DepthAttachment->ImageView)
+        if (info.DepthAttachment && info.DepthAttachment->Texture)
         {
             m_vkDepthAttachment = vk::RenderingAttachmentInfo();
             const RenderingAttachmentInfo& attachment = *info.DepthAttachment;
-            m_vkDepthAttachment.imageView = std::dynamic_pointer_cast<VKTexture>(attachment.ImageView)->
-                GetVulkanImageView();
+            m_vkDepthAttachment.imageView = std::static_pointer_cast<VKTextureView>(
+                    std::static_pointer_cast<VKTexture>(attachment.Texture)->GetDefaultView())->
+                GetHandle();
             m_vkDepthAttachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
             m_vkDepthAttachment.resolveMode = vk::ResolveModeFlagBits::eNone;
             switch (attachment.LoadOp)
@@ -313,12 +330,13 @@ namespace Cacao
         {
             vkRenderingInfo.pDepthAttachment = nullptr;
         }
-        if (info.StencilAttachment && info.StencilAttachment->ImageView)
+        if (info.StencilAttachment && info.StencilAttachment->Texture)
         {
             m_vkStencilAttachment = vk::RenderingAttachmentInfo();
             const RenderingAttachmentInfo& attachment = *info.StencilAttachment;
-            m_vkStencilAttachment.imageView = std::dynamic_pointer_cast<VKTexture>(attachment.ImageView)->
-                GetVulkanImageView();
+            m_vkStencilAttachment.imageView = std::static_pointer_cast<VKTextureView>(
+                    std::static_pointer_cast<VKTexture>(attachment.Texture)->GetDefaultView())->
+                GetHandle();
             m_vkStencilAttachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
             m_vkStencilAttachment.resolveMode = vk::ResolveModeFlagBits::eNone;
             switch (attachment.LoadOp)
@@ -411,11 +429,19 @@ namespace Cacao
     {
         m_commandBuffer.endRendering();
     }
-    void VKCommandBufferEncoder::BindGraphicsPipeline(const std::shared_ptr<CacaoGraphicsPipeline>& pipeline)
+    void VKCommandBufferEncoder::BindGraphicsPipeline(const Ref<CacaoGraphicsPipeline>& pipeline)
     {
+        m_commandBuffer.bindPipeline(
+            vk::PipelineBindPoint::eGraphics,
+            std::dynamic_pointer_cast<VKGraphicsPipeline>(pipeline)->GetHandle()
+        );
     }
-    void VKCommandBufferEncoder::BindComputePipeline(const std::shared_ptr<CacaoComputePipeline>& pipeline)
+    void VKCommandBufferEncoder::BindComputePipeline(const Ref<CacaoComputePipeline>& pipeline)
     {
+        m_commandBuffer.bindPipeline(
+            vk::PipelineBindPoint::eCompute,
+            std::dynamic_pointer_cast<VKComputePipeline>(pipeline)->GetHandle()
+        );
     }
     void VKCommandBufferEncoder::SetViewport(const Viewport& viewport)
     {
@@ -435,14 +461,14 @@ namespace Cacao
                                        {scissor.Width, scissor.Height}
                                    ));
     }
-    void VKCommandBufferEncoder::BindVertexBuffer(uint32_t binding, const std::shared_ptr<CacaoBuffer>& buffer,
+    void VKCommandBufferEncoder::BindVertexBuffer(uint32_t binding, const Ref<CacaoBuffer>& buffer,
                                                   uint64_t offset)
     {
         m_commandBuffer.bindVertexBuffers(binding,
-                                          std::dynamic_pointer_cast<VKBuffer>(buffer)->GetVulkanBuffer(),
+                                          std::dynamic_pointer_cast<VKBuffer>(buffer)->GetHandle(),
                                           offset);
     }
-    void VKCommandBufferEncoder::BindIndexBuffer(const std::shared_ptr<CacaoBuffer>& buffer, uint64_t offset,
+    void VKCommandBufferEncoder::BindIndexBuffer(const Ref<CacaoBuffer>& buffer, uint64_t offset,
                                                  IndexType indexType)
     {
         vk::IndexType vkIndexType;
@@ -458,21 +484,64 @@ namespace Cacao
             throw std::runtime_error("Unsupported index type in BindIndexBuffer");
         }
         m_commandBuffer.bindIndexBuffer(
-            std::dynamic_pointer_cast<VKBuffer>(buffer)->GetVulkanBuffer(),
+            std::dynamic_pointer_cast<VKBuffer>(buffer)->GetHandle(),
             offset,
             vkIndexType
         );
     }
-    void VKCommandBufferEncoder::BindDescriptorSets(const std::shared_ptr<CacaoGraphicsPipeline>& pipeline,
+    std::vector<vk::DescriptorSet> ConvertDescriptorSets(
+        const std::vector<Ref<CacaoDescriptorSet>>& descriptorSets)
+    {
+        std::vector<vk::DescriptorSet> vkDescriptorSets;
+        vkDescriptorSets.reserve(descriptorSets.size());
+        for (const auto& descriptorSet : descriptorSets)
+        {
+            vkDescriptorSets.push_back(
+                std::static_pointer_cast<VKDescriptorSet>(descriptorSet)->GetHandle());
+        }
+        return vkDescriptorSets;
+    }
+    void VKCommandBufferEncoder::BindDescriptorSets(const Ref<CacaoGraphicsPipeline>& pipeline,
                                                     uint32_t firstSet,
-                                                    const std::vector<std::shared_ptr<CacaoDescriptorSet>>&
+                                                    const std::vector<Ref<CacaoDescriptorSet>>&
                                                     descriptorSets)
     {
+        m_commandBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            std::static_pointer_cast<VKPipelineLayout>(
+                std::static_pointer_cast<VKGraphicsPipeline>(pipeline)->GetLayout())->GetHandle(),
+            firstSet,
+            static_cast<uint32_t>(descriptorSets.size()),
+            ConvertDescriptorSets(descriptorSets).data(),
+            0,
+            nullptr
+        );
     }
-    void VKCommandBufferEncoder::PushConstants(const std::shared_ptr<CacaoGraphicsPipeline>& pipeline,
-                                               ShaderStageFlags stageFlags, uint32_t offset, uint32_t size,
+    void VKCommandBufferEncoder::PushConstants(const Ref<CacaoGraphicsPipeline>& pipeline,
+                                               ShaderStage stageFlags, uint32_t offset, uint32_t size,
                                                const void* data)
     {
+        vk::ShaderStageFlags vkStageFlags;
+        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Vertex))
+            vkStageFlags |= vk::ShaderStageFlagBits::eVertex;
+        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Fragment))
+            vkStageFlags |= vk::ShaderStageFlagBits::eFragment;
+        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Geometry))
+            vkStageFlags |= vk::ShaderStageFlagBits::eGeometry;
+        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Compute))
+            vkStageFlags |= vk::ShaderStageFlagBits::eCompute;
+        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::TessellationControl))
+            vkStageFlags |= vk::ShaderStageFlagBits::eTessellationControl;
+        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::TessellationEvaluation))
+            vkStageFlags |= vk::ShaderStageFlagBits::eTessellationEvaluation;
+        m_commandBuffer.pushConstants(
+            std::static_pointer_cast<VKPipelineLayout>(
+                std::static_pointer_cast<VKGraphicsPipeline>(pipeline)->GetLayout())->GetHandle(),
+            vkStageFlags,
+            offset,
+            size,
+            data
+        );
     }
     void VKCommandBufferEncoder::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
                                       uint32_t firstInstance)
@@ -484,7 +553,7 @@ namespace Cacao
     {
         m_commandBuffer.drawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
-    void VKCommandBufferEncoder::PipelineBarrier(PipelineStageFlags srcStage, PipelineStageFlags dstStage,
+    void VKCommandBufferEncoder::PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
                                                  const std::vector<MemoryBarrier>& globalBarriers,
                                                  const std::vector<BufferBarrier>& bufferBarriers,
                                                  const std::vector<TextureBarrier>& textureBarriers)
@@ -512,15 +581,15 @@ namespace Cacao
                                        .setDstAccessMask(TranslateAccessFlags(barrier.DstAccess))
                                        .setSrcQueueFamilyIndex(barrier.SrcQueueFamilyIndex)
                                        .setDstQueueFamilyIndex(barrier.DstQueueFamilyIndex)
-                                       .setBuffer(vkBuffer->GetVulkanBuffer()) 
+                                       .setBuffer(vkBuffer->GetHandle())
                                        .setOffset(barrier.Offset)
-                                       .setSize(barrier.Size) 
+                                       .setSize(barrier.Size)
             );
         }
         for (const auto& barrier : textureBarriers)
         {
             auto vkTexture = std::static_pointer_cast<VKTexture>(barrier.Texture);
-            vk::ImageAspectFlags aspectMask = InferAspectFlags(vkTexture->GetFormat());
+            vk::ImageAspectFlags aspectMask = Convert(barrier.SubresourceRange.AspectMask);
             vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
                                                          .setAspectMask(aspectMask)
                                                          .setBaseMipLevel(barrier.SubresourceRange.BaseMipLevel)
@@ -534,14 +603,14 @@ namespace Cacao
                                         .setNewLayout(TranslateImageLayout(barrier.NewLayout))
                                         .setSrcQueueFamilyIndex(barrier.SrcQueueFamilyIndex)
                                         .setDstQueueFamilyIndex(barrier.DstQueueFamilyIndex)
-                                        .setImage(vkTexture->GetVulkanImage()) 
+                                        .setImage(vkTexture->GetVulkanImage())
                                         .setSubresourceRange(subresourceRange)
             );
         }
         m_commandBuffer.pipelineBarrier(
             vkSrcStage,
             vkDstStage,
-            vk::DependencyFlags(), 
+            vk::DependencyFlags(),
             static_cast<uint32_t>(vkGlobalBarriers.size()), vkGlobalBarriers.data(),
             static_cast<uint32_t>(vkBufferBarriers.size()), vkBufferBarriers.data(),
             static_cast<uint32_t>(vkTextureBarriers.size()), vkTextureBarriers.data()

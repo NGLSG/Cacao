@@ -26,7 +26,8 @@ namespace Cacao
         Extent2D GetExtent() const override;
         Format GetFormat() const override;
         PresentMode GetPresentMode() const override;
-        Result AcquireNextImage(const Ref<CacaoSynchronization>& sync, int& out) override;
+        Result AcquireNextImage(const Ref<CacaoSynchronization>& sync, int idx, int& out) override;
+        ~VKSwapchain() override;
     };
 } 
 #endif 

@@ -21,9 +21,9 @@ namespace Cacao
     };
     enum class QueueType
     {
-        Graphics, 
-        Compute, 
-        Transfer, 
+        Graphics,
+        Compute,
+        Transfer,
         Present 
     };
     enum class CacaoFeature : uint32_t
@@ -71,5 +71,5 @@ namespace Cacao
             }
         }
     };
-} 
-#endif 
+}
+#endif

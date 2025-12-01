@@ -101,5 +101,5 @@ void Cacao::VKBuffer::Flush(uint64_t offset, uint64_t size)
 uint64_t Cacao::VKBuffer::GetDeviceAddress() const
 {
     vk::BufferDeviceAddressInfo addressInfo = vk::BufferDeviceAddressInfo().setBuffer(m_buffer);
-    return std::dynamic_pointer_cast<VKDevice>(m_device)->GetVulkanDevice().getBufferAddress(addressInfo);
+    return std::dynamic_pointer_cast<VKDevice>(m_device)->GetHandle().getBufferAddress(addressInfo);
 }

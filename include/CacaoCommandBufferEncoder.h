@@ -62,18 +62,6 @@ namespace Cacao
         UInt16,
         UInt32
     };
-    enum class ShaderStageFlags: uint32_t
-    {
-        None = 0,
-        Vertex = 1 << 0,
-        Fragment = 1 << 1,
-        Compute = 1 << 2,
-        Geometry = 1 << 3,
-        TessellationControl = 1 << 4,
-        TessellationEvaluation = 1 << 5,
-        AllGraphics = Vertex | Fragment | Geometry | TessellationControl | TessellationEvaluation,
-        All = 0xFFFFFFFF
-    };
     enum class AttachmentLoadOp
     {
         Load, 
@@ -87,7 +75,7 @@ namespace Cacao
     };
     struct RenderingAttachmentInfo
     {
-        std::shared_ptr<CacaoTexture> ImageView;
+        Ref<CacaoTexture> Texture;
         AttachmentLoadOp LoadOp = AttachmentLoadOp::Clear;
         AttachmentStoreOp StoreOp = AttachmentStoreOp::Store;
         ClearValue ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -124,21 +112,21 @@ namespace Cacao
         virtual void End() = 0;
         virtual void BeginRendering(const RenderingInfo& info) = 0;
         virtual void EndRendering() = 0;
-        virtual void BindGraphicsPipeline(const std::shared_ptr<CacaoGraphicsPipeline>& pipeline) = 0;
-        virtual void BindComputePipeline(const std::shared_ptr<CacaoComputePipeline>& pipeline) = 0;
+        virtual void BindGraphicsPipeline(const Ref<CacaoGraphicsPipeline>& pipeline) = 0;
+        virtual void BindComputePipeline(const Ref<CacaoComputePipeline>& pipeline) = 0;
         virtual void SetViewport(const Viewport& viewport) = 0;
         virtual void SetScissor(const Rect2D& scissor) = 0;
-        virtual void BindVertexBuffer(uint32_t binding, const std::shared_ptr<CacaoBuffer>& buffer,
+        virtual void BindVertexBuffer(uint32_t binding, const Ref<CacaoBuffer>& buffer,
                                       uint64_t offset = 0) = 0;
-        virtual void BindIndexBuffer(const std::shared_ptr<CacaoBuffer>& buffer, uint64_t offset,
+        virtual void BindIndexBuffer(const Ref<CacaoBuffer>& buffer, uint64_t offset,
                                      IndexType indexType) = 0;
         virtual void BindDescriptorSets(
-            const std::shared_ptr<CacaoGraphicsPipeline>& pipeline,
+            const Ref<CacaoGraphicsPipeline>& pipeline,
             uint32_t firstSet,
-            const std::vector<std::shared_ptr<CacaoDescriptorSet>>& descriptorSets) = 0;
+            const std::vector<Ref<CacaoDescriptorSet>>& descriptorSets) = 0;
         virtual void PushConstants(
-            const std::shared_ptr<CacaoGraphicsPipeline>& pipeline,
-            ShaderStageFlags stageFlags,
+            const Ref<CacaoGraphicsPipeline>& pipeline,
+            ShaderStage stageFlags,
             uint32_t offset,
             uint32_t size,
             const void* data) = 0;
@@ -147,23 +135,23 @@ namespace Cacao
         virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset,
                                  uint32_t firstInstance) = 0;
         virtual void PipelineBarrier(
-            PipelineStageFlags srcStage,
-            PipelineStageFlags dstStage,
+            PipelineStage srcStage,
+            PipelineStage dstStage,
             const std::vector<MemoryBarrier>& globalBarriers,
             const std::vector<BufferBarrier>& bufferBarriers,
             const std::vector<TextureBarrier>& textureBarriers
         ) = 0;
         virtual void PipelineBarrier(
-            PipelineStageFlags srcStage,
-            PipelineStageFlags dstStage,
+            PipelineStage srcStage,
+            PipelineStage dstStage,
             const std::vector<TextureBarrier>& textureBarriers
         )
         {
             PipelineBarrier(srcStage, dstStage, {}, {}, textureBarriers);
         }
         virtual void PipelineBarrier(
-            PipelineStageFlags srcStage,
-            PipelineStageFlags dstStage,
+            PipelineStage srcStage,
+            PipelineStage dstStage,
             const std::vector<BufferBarrier>& bufferBarriers
         )
         {

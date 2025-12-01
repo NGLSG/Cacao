@@ -71,14 +71,14 @@ namespace Cacao
         RGBA8_UNORM,
         BGRA8_SRGB,
         BGRA8_UNORM,
-        RGBA16_FLOAT, 
+        RGBA16_FLOAT,
         RGB10A2_UNORM,
         RGB16_FLOAT,
-        RGBA32_FLOAT, 
-        R8_UNORM, 
-        R16_FLOAT, 
-        D24S8, 
-        D32F, 
+        RGBA32_FLOAT,
+        R8_UNORM,
+        R16_FLOAT,
+        D24S8,
+        D32F,
         UNDEFINED,
     };
     enum class ColorSpace
@@ -94,5 +94,40 @@ namespace Cacao
         uint32_t width;
         uint32_t height;
     };
-} 
-#endif 
+    enum class ShaderStage : uint32_t
+    {
+        None = 0,
+        Vertex = 1 << 0,
+        Fragment = 1 << 1,
+        Compute = 1 << 2,
+        Geometry = 1 << 3,
+        TessellationControl = 1 << 4,
+        TessellationEvaluation = 1 << 5,
+        RayGen = 1 << 6,
+        RayAnyHit = 1 << 7,
+        RayClosestHit = 1 << 8,
+        RayMiss = 1 << 9,
+        RayIntersection = 1 << 10,
+        Callable = 1 << 11,
+        Mesh = 1 << 12,
+        Task = 1 << 13,
+        AllGraphics = Vertex | Fragment | Geometry | TessellationControl | TessellationEvaluation,
+        AllRayTracing = RayGen | RayAnyHit | RayClosestHit | RayMiss | RayIntersection | Callable,
+        AllMeshShading = Mesh | Task,
+        All = 0xFFFFFFFF
+    };
+    inline ShaderStage operator|(ShaderStage a, ShaderStage b)
+    {
+        return static_cast<ShaderStage>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    }
+    inline ShaderStage& operator|=(ShaderStage& a, ShaderStage b)
+    {
+        a = a | b;
+        return a;
+    }
+    inline bool operator&(ShaderStage a, ShaderStage b)
+    {
+        return (static_cast<uint32_t>(a) & static_cast<uint32_t>(b)) != 0;
+    }
+}
+#endif

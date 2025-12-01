@@ -15,18 +15,18 @@ namespace Cacao
     {
         return m_inFlightFences[frameIndex];
     }
-    Ref<VKSynchronization> VKSynchronization::Create(const Ref<VKDevice>& device, uint32_t maxFramesInFlight)
+    Ref<VKSynchronization> VKSynchronization::Create(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight)
     {
-        auto sync = CreateRef<VKSynchronization>(device, maxFramesInFlight);
-        return sync;
+        return CreateRef<VKSynchronization>(device, maxFramesInFlight);
     }
-    VKSynchronization::VKSynchronization(const Ref<VKDevice>& device, uint32_t maxFramesInFlight) : m_vkDevice(device),
+    VKSynchronization::VKSynchronization(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight) :
         m_maxFramesInFlight(maxFramesInFlight)
     {
         if (!device)
         {
             throw std::runtime_error("VKSynchronization created with null device");
         }
+        m_vkDevice = std::dynamic_pointer_cast<VKDevice>(device);
         m_inFlightFences.resize(maxFramesInFlight);
         m_renderFinishedSemaphores.resize(maxFramesInFlight);
         m_imageAvailableSemaphores.resize(maxFramesInFlight);
@@ -34,14 +34,14 @@ namespace Cacao
         vk::FenceCreateInfo fenceInfo = vk::FenceCreateInfo().setFlags(vk::FenceCreateFlagBits::eSignaled);
         for (uint32_t i = 0; i < maxFramesInFlight; ++i)
         {
-            m_imageAvailableSemaphores[i] = m_vkDevice->GetVulkanDevice().createSemaphore(semaphoreInfo);
-            m_renderFinishedSemaphores[i] = m_vkDevice->GetVulkanDevice().createSemaphore(semaphoreInfo);
-            m_inFlightFences[i] = m_vkDevice->GetVulkanDevice().createFence(fenceInfo);
+            m_imageAvailableSemaphores[i] = m_vkDevice->GetHandle().createSemaphore(semaphoreInfo);
+            m_renderFinishedSemaphores[i] = m_vkDevice->GetHandle().createSemaphore(semaphoreInfo);
+            m_inFlightFences[i] = m_vkDevice->GetHandle().createFence(fenceInfo);
         }
     }
     void VKSynchronization::WaitForFrame(uint32_t frameIndex) const
     {
-        if (m_vkDevice->GetVulkanDevice().waitForFences(1, &m_inFlightFences[frameIndex], VK_TRUE, UINT64_MAX) !=
+        if (m_vkDevice->GetHandle().waitForFences(1, &m_inFlightFences[frameIndex], VK_TRUE, UINT64_MAX) !=
             vk::Result::eSuccess)
         {
             throw std::runtime_error("Waiting for fence failed");
@@ -49,7 +49,7 @@ namespace Cacao
     }
     void VKSynchronization::ResetFrameFence(uint32_t frameIndex) const
     {
-        if (m_vkDevice->GetVulkanDevice().resetFences(1, &m_inFlightFences[frameIndex]) != vk::Result::eSuccess)
+        if (m_vkDevice->GetHandle().resetFences(1, &m_inFlightFences[frameIndex]) != vk::Result::eSuccess)
         {
             throw std::runtime_error("Resetting fence failed");
         }
@@ -60,7 +60,7 @@ namespace Cacao
         {
             throw std::runtime_error("AcquireNextImageIndex called with null swapchain");
         }
-        return m_vkDevice->GetVulkanDevice().acquireNextImageKHR(
+        return m_vkDevice->GetHandle().acquireNextImageKHR(
             std::dynamic_pointer_cast<VKSwapchain>(swapchain)->GetVulkanSwapchain(),
             UINT64_MAX,
             m_imageAvailableSemaphores[frameIndex],
@@ -70,4 +70,13 @@ namespace Cacao
     {
         return m_maxFramesInFlight;
     }
-} 
+    VKSynchronization::~VKSynchronization()
+    {
+        for (uint32_t i = 0; i < m_maxFramesInFlight; ++i)
+        {
+            m_vkDevice->GetHandle().destroySemaphore(m_imageAvailableSemaphores[i]);
+            m_vkDevice->GetHandle().destroySemaphore(m_renderFinishedSemaphores[i]);
+            m_vkDevice->GetHandle().destroyFence(m_inFlightFences[i]);
+        }
+    }
+}

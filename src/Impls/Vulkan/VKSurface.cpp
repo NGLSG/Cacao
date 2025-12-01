@@ -193,7 +193,7 @@ namespace Cacao
     {
         uint32_t presentQueueFamilyIndex = GetPresentQueueFamilyIndex(
             device->GetParentAdapter());
-        vk::Queue vkQueue = std::dynamic_pointer_cast<VKDevice>(device)->GetVulkanDevice().getQueue(
+        vk::Queue vkQueue = std::dynamic_pointer_cast<VKDevice>(device)->GetHandle().getQueue(
             presentQueueFamilyIndex, 0);
         return VKQueue::Create(device, vkQueue, QueueType::Present, 0);
     }

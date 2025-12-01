@@ -53,6 +53,7 @@ namespace Cacao
         std::vector<Ref<CacaoAdapter>> EnumerateAdapters() override;
         bool IsFeatureEnabled(CacaoInstanceFeature feature) const override;
         Ref<CacaoSurface> CreateSurface(const NativeWindowHandle& windowHandle) override;
+        Ref<CacaoShaderCompiler> CreateShaderCompiler() override;
     };
 }
 #endif 

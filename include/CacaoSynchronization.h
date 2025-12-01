@@ -3,9 +3,6 @@
 namespace Cacao
 {
     class CacaoSwapchain;
-}
-namespace Cacao
-{
     class CACAO_API CacaoSynchronization : public std::enable_shared_from_this<CacaoSynchronization>
     {
     public:

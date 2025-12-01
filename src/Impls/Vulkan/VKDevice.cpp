@@ -3,10 +3,17 @@
 #include "Impls/Vulkan/VKAdapter.h"
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKCommandBufferEncoder.h"
+#include "Impls/Vulkan/VKDescriptorPool.h"
+#include "Impls/Vulkan/VKDescriptorSetLayout.h"
 #include "Impls/Vulkan/VKInstance.h"
+#include "Impls/Vulkan/VKPipeline.h"
+#include "Impls/Vulkan/VKPipelineLayout.h"
 #include "Impls/Vulkan/VKQueue.h"
+#include "Impls/Vulkan/VKSampler.h"
+#include "Impls/Vulkan/VKShaderModule.h"
 #include "Impls/Vulkan/VKSurface.h"
 #include "Impls/Vulkan/VKSwapchain.h"
+#include "Impls/Vulkan/VKSynchronization.h"
 #include "Impls/Vulkan/VKTexture.h"
 namespace Cacao
 {
@@ -28,6 +35,8 @@ namespace Cacao
             presentQueueFamily = std::dynamic_pointer_cast<VKSurface>(createInfo.CompatibleSurface)->
                 GetPresentQueueFamilyIndex(adapter);
         std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+        std::vector<std::vector<float>> prioritiesStorage;
+        prioritiesStorage.reserve(createInfo.QueueRequests.size());
         for (const auto& queueRequest : createInfo.QueueRequests)
         {
             uint32_t queueFamilyIndex = std::dynamic_pointer_cast<VKAdapter>(adapter)->FindQueueFamilyIndex(
@@ -35,12 +44,14 @@ namespace Cacao
             vk::DeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
             queueCreateInfo.queueCount = queueRequest.Count;
-            std::vector<float> priorities(queueRequest.Count, queueRequest.Priority);
-            queueCreateInfo.pQueuePriorities = priorities.data();
+            prioritiesStorage.push_back(std::vector<float>(queueRequest.Count, queueRequest.Priority));
+            queueCreateInfo.pQueuePriorities = prioritiesStorage.back().data();
             queueCreateInfos.push_back(queueCreateInfo);
             m_queueFamilyIndices.push_back(queueFamilyIndex);
         }
         vk::PhysicalDeviceFeatures features10{};
+        vk::PhysicalDeviceVulkan11Features features11{};
+        features11.shaderDrawParameters = VK_TRUE;
         vk::PhysicalDeviceVulkan12Features features12{};
         vk::PhysicalDeviceVulkan13Features features13{};
         features13.dynamicRendering = VK_TRUE;
@@ -129,6 +140,7 @@ namespace Cacao
             structure.pNext = pNextChain;
             pNextChain = &structure;
         };
+        ChainStruct(features11);
         ChainStruct(features12);
         ChainStruct(features13);
         if (std::find(extensions.begin(), extensions.end(), VK_EXT_MESH_SHADER_EXTENSION_NAME) != extensions.end())
@@ -150,23 +162,23 @@ namespace Cacao
         {
             ChainStruct(vrsFeatures);
         }
-        vk::DeviceCreateInfo deviceCreateInfo = vk::DeviceCreateInfo().setEnabledExtensionCount(
-                                                                           static_cast<uint32_t>(extensions.size())).
-                                                                       setPpEnabledExtensionNames(extensions.data()).
-                                                                       setQueueCreateInfoCount(
-                                                                           static_cast<uint32_t>(queueCreateInfos.
-                                                                               size())).
-                                                                       setPQueueCreateInfos(queueCreateInfos.data()).
-                                                                       setPEnabledFeatures(&features10).
-                                                                       setPNext(pNextChain);
+        vk::DeviceCreateInfo deviceCreateInfo = vk::DeviceCreateInfo()
+                                                .setEnabledExtensionCount(static_cast<uint32_t>(extensions.size()))
+                                                .setPpEnabledExtensionNames(extensions.data())
+                                                .setQueueCreateInfoCount(static_cast<uint32_t>(queueCreateInfos.size()))
+                                                .setPQueueCreateInfos(queueCreateInfos.data())
+                                                .setPEnabledFeatures(&features10)
+                                                .setPNext(pNextChain);
         m_Device = pyDevice.createDevice(deviceCreateInfo);
         if (!m_Device)
         {
             throw std::runtime_error("Failed to create Vulkan logical device");
         }
-        vk::CommandPoolCreateInfo commandPoolCreateInfo = vk::CommandPoolCreateInfo().setFlags(
-            vk::CommandPoolCreateFlagBits::eResetCommandBuffer).setQueueFamilyIndex(
-            std::dynamic_pointer_cast<VKAdapter>(adapter)->FindQueueFamilyIndex(QueueType::Graphics));
+        vk::CommandPoolCreateInfo commandPoolCreateInfo = vk::CommandPoolCreateInfo()
+                                                          .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+                                                          .setQueueFamilyIndex(
+                                                              std::dynamic_pointer_cast<VKAdapter>(adapter)->
+                                                              FindQueueFamilyIndex(QueueType::Graphics));
         m_graphicsCommandPool = m_Device.createCommandPool(commandPoolCreateInfo);
         if (!m_graphicsCommandPool)
         {
@@ -177,11 +189,33 @@ namespace Cacao
         allocatorInfo.device = m_Device;
         allocatorInfo.instance = std::dynamic_pointer_cast<VKAdapter>(m_parentAdapter)->GetInstance()->
             GetVulkanInstance();
-        vmaCreateAllocator(&allocatorInfo, &m_allocator);
+        allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+        if (vmaCreateAllocator(&allocatorInfo, &m_allocator) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create VMA allocator");
+        }
+    }
+    VKDevice::~VKDevice()
+    {
+        WaitIdle();
+        if (m_allocator)
+        {
+            vmaDestroyAllocator(m_allocator);
+            m_allocator = nullptr;
+        }
+        if (m_graphicsCommandPool)
+        {
+            m_Device.destroyCommandPool(m_graphicsCommandPool);
+            m_graphicsCommandPool = nullptr;
+        }
+        m_Device.destroy();
     }
     void VKDevice::WaitIdle() const
     {
-        m_Device.waitIdle();
+        if (m_Device)
+        {
+            m_Device.waitIdle();
+        }
     }
     Ref<CacaoQueue> VKDevice::GetQueue(QueueType type, uint32_t index)
     {
@@ -276,4 +310,41 @@ namespace Cacao
     {
         return VKBuffer::Create(shared_from_this(), m_allocator, createInfo);
     }
-} 
+    Ref<CacaoSampler> VKDevice::CreateSampler(const SamplerCreateInfo& createInfo)
+    {
+        return VKSampler::Create(shared_from_this(), createInfo);
+    }
+    std::shared_ptr<CacaoDescriptorSetLayout> VKDevice::CreateDescriptorSetLayout(
+        const DescriptorSetLayoutCreateInfo& info)
+    {
+        return VKDescriptorSetLayout::Create(shared_from_this(), info);
+    }
+    std::shared_ptr<CacaoDescriptorPool> VKDevice::CreateDescriptorPool(const DescriptorPoolCreateInfo& info)
+    {
+        return VKDescriptorPool::Create(shared_from_this(), info);
+    }
+    Ref<CacaoShaderModule> VKDevice::CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info)
+    {
+        return VKShaderModule::Create(shared_from_this(), info, blob);
+    }
+    Ref<CacaoPipelineLayout> VKDevice::CreatePipelineLayout(const PipelineLayoutCreateInfo& info)
+    {
+        return VKPipelineLayout::Create(shared_from_this(), info);
+    }
+    Ref<CacaoPipelineCache> VKDevice::CreatePipelineCache(const std::vector<uint8_t>& initialData)
+    {
+        return VKPipelineCache::Create(shared_from_this(), initialData);
+    }
+    Ref<CacaoGraphicsPipeline> VKDevice::CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info)
+    {
+        return VKGraphicsPipeline::Create(shared_from_this(), info);
+    }
+    Ref<CacaoComputePipeline> VKDevice::CreateComputePipeline(const ComputePipelineCreateInfo& info)
+    {
+        return VKComputePipeline::Create(shared_from_this(), info);
+    }
+    Ref<CacaoSynchronization> VKDevice::CreateSynchronization(uint32_t maxFramesInFlight)
+    {
+        return VKSynchronization::Create(shared_from_this(), maxFramesInFlight);
+    }
+}

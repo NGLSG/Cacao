@@ -3,6 +3,13 @@ project(Cacao)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include(cmake/CPM.cmake)
+
+CPMAddPackage(
+        NAME slang
+        GITHUB_REPOSITORY shader-slang/slang
+        GIT_TAG master
+)
 
 find_package(Vulkan REQUIRED)
 file(GLOB_RECURSE SOURCE_FILES
@@ -22,7 +29,7 @@ target_compile_definitions(Cacao PRIVATE CACAO_BUILD_DLL)
 
 target_include_directories(Cacao PUBLIC include)
 
-target_link_libraries(Cacao PUBLIC Vulkan::Vulkan)
+target_link_libraries(Cacao PUBLIC Vulkan::Vulkan slang)
 
 add_executable(Test main.cpp VkContext.cpp SynchronizationContext.cpp)
 

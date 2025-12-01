@@ -1,10 +1,8 @@
 #include <fstream>
-#include <vulkan/vulkan.hpp>
 #include <windows.h>
 #include <iostream>
-
-#include "SynchronizationContext.h"
-#include "VkContext.h"
+#include "Cacao.hpp"
+using namespace Cacao;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -45,8 +43,8 @@ std::vector<uint32_t> loadSpv(const char* filename)
 int main()
 {
     HINSTANCE hInstance = GetModuleHandle(nullptr);
-    const char* className = "CacaoVulkanWindowClass";
-    const char* windowTitle = "Cacao Vulkan Renderer";
+    const char* className = "CacaoWindowClass";
+    const char* windowTitle = "Cacao Renderer";
     const int width = 800;
     const int height = 600;
 
@@ -99,125 +97,179 @@ int main()
 
     MSG msg = {};
     bool isRunning = true;
-    GraphicsContextCreateInfo gccInfo{};
-    gccInfo.nativeWindowHandle.hInstance = hInstance;
-    gccInfo.nativeWindowHandle.hWnd = hWnd;
-    gccInfo.enableValidationLayers = true;
-    gccInfo.vsyncEnabled = true;
-    gccInfo.windowSize.width = width;
-    gccInfo.windowSize.height = height;
-    std::shared_ptr<VkContext> vkContext = VkContext::Create(gccInfo);
-    if (!vkContext)
+    CacaoInstanceCreateInfo instanceCreateInfo;
+    instanceCreateInfo.type = CacaoType::Vulkan;
+    instanceCreateInfo.applicationName = "CacaoApp";
+    instanceCreateInfo.appVersion = 1;
+    instanceCreateInfo.enabledFeatures = {CacaoInstanceFeature::ValidationLayer, CacaoInstanceFeature::Surface};
+    Ref<CacaoInstance> instance = CacaoInstance::Create(instanceCreateInfo);
+    if (!instance)
     {
-        std::cerr << "Failed to create Vulkan context." << std::endl;
+        std::cerr << "Fatal Error: Failed to create Cacao instance." << std::endl;
         return EXIT_FAILURE;
     }
-    std::shared_ptr<SynchronizationContext> syncContext = SynchronizationContext::Create(vkContext, 3);
-    if (!syncContext)
+    Ref<CacaoAdapter> adapter = instance->EnumerateAdapters().front();
+    if (!adapter)
     {
-        std::cerr << "Failed to create synchronization context." << std::endl;
+        std::cerr << "Fatal Error: No Cacao adapters found." << std::endl;
+        return EXIT_FAILURE;
+    }
+    auto properties = adapter->GetProperties();
+    std::cout << "Using adapter: " << properties.name << std::endl;
+
+    NativeWindowHandle nativeWindowHandle;
+    nativeWindowHandle.hInst = hInstance;
+    nativeWindowHandle.hWnd = hWnd;
+    Ref<CacaoSurface> surface = instance->CreateSurface(nativeWindowHandle);
+    if (!surface)
+    {
+        std::cerr << "Fatal Error: Failed to create Cacao surface." << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::vector<CacaoQueueRequest> queueRequests = {
+        {QueueType::Graphics, 1, 1.0f},
+    };
+    CacaoDeviceCreateInfo deviceCreateInfo;
+    deviceCreateInfo.QueueRequests = queueRequests;
+    deviceCreateInfo.CompatibleSurface = surface;
+    Ref<CacaoDevice> device = adapter->CreateDevice(deviceCreateInfo);
+    if (!device)
+    {
+        std::cerr << "Fatal Error: Failed to create Cacao device." << std::endl;
+        return EXIT_FAILURE;
+    }
+    SwapchainCreateInfo swapchainCreateInfo;
+    auto surfaceCaps = surface->GetCapabilities(adapter);
+    swapchainCreateInfo.Extent = surfaceCaps.currentExtent;
+    swapchainCreateInfo.Format = Format::BGRA8_UNORM;
+    swapchainCreateInfo.ColorSpace = ColorSpace::SRGB_NONLINEAR;
+    swapchainCreateInfo.PresentMode = PresentMode::Mailbox;
+    swapchainCreateInfo.MinImageCount = surfaceCaps.minImageCount + 1;
+    if (swapchainCreateInfo.MinImageCount > surfaceCaps.maxImageCount &&
+        surfaceCaps.maxImageCount != 0)
+    {
+        swapchainCreateInfo.MinImageCount = surfaceCaps.maxImageCount;
+    }
+    swapchainCreateInfo.CompatibleSurface = surface;
+    swapchainCreateInfo.PreTransform = surfaceCaps.currentTransform;
+    swapchainCreateInfo.Clipped = true;
+
+    Ref<CacaoSwapchain> swapchain = device->CreateSwapchain(swapchainCreateInfo);
+    if (!swapchain)
+    {
+        std::cerr << "Fatal Error: Failed to create Cacao swapchain." << std::endl;
         return EXIT_FAILURE;
     }
 
-    vk::PipelineLayoutCreateInfo plci{};
-    vk::PipelineLayout pipelineLayout = vkContext->GetDevice().createPipelineLayout(plci);
-    vk::PipelineRenderingCreateInfo pipelineRendering{};
-    pipelineRendering.colorAttachmentCount = 1;
-    pipelineRendering.pColorAttachmentFormats = &vkContext->GetSurfaceFormat().format;
-
-    // 1. 创建 shader module
-    auto vertCode = loadSpv("triangle.vert.spv");
-    auto fragCode = loadSpv("triangle.frag.spv");
-
-    vk::ShaderModuleCreateInfo smci{};
-    smci.codeSize = vertCode.size() * sizeof(uint32_t);
-    smci.pCode = vertCode.data();
-    vk::ShaderModule vertModule = vkContext->GetDevice().createShaderModule(smci);
-
-    smci.codeSize = fragCode.size() * sizeof(uint32_t);
-    smci.pCode = fragCode.data();
-    vk::ShaderModule fragModule = vkContext->GetDevice().createShaderModule(smci);
-
-    vk::PipelineShaderStageCreateInfo shaderStages[] = {
-        vk::PipelineShaderStageCreateInfo{}
-        .setStage(vk::ShaderStageFlagBits::eVertex)
-        .setModule(vertModule)
-        .setPName("main"),
-        vk::PipelineShaderStageCreateInfo{}
-        .setStage(vk::ShaderStageFlagBits::eFragment)
-        .setModule(fragModule)
-        .setPName("main"),
-    };
-
-    // 2. 其他基本 state（全部可以先用最简单的）
-    vk::PipelineVertexInputStateCreateInfo vertexInput{};
-    vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
-
-    vk::PipelineRasterizationStateCreateInfo raster{};
-    raster.polygonMode = vk::PolygonMode::eFill;
-    raster.cullMode = vk::CullModeFlagBits::eBack;
-    raster.frontFace = vk::FrontFace::eClockwise;
-    raster.lineWidth = 1.0f;
-
-    vk::PipelineMultisampleStateCreateInfo ms{};
-    ms.rasterizationSamples = vk::SampleCountFlagBits::e1;
-
-    vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask =
-        vk::ColorComponentFlagBits::eR |
-        vk::ColorComponentFlagBits::eG |
-        vk::ColorComponentFlagBits::eB |
-        vk::ColorComponentFlagBits::eA;
-
-    vk::PipelineColorBlendStateCreateInfo blend{};
-    blend.attachmentCount = 1;
-    blend.pAttachments = &colorBlendAttachment;
-
-    // 3. 真正的 pipelineCreateInfo
-    vk::GraphicsPipelineCreateInfo pipelineCreateInfo{};
-    vk::DynamicState dynamicStates[] = {
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor,
-    };
-    vk::PipelineViewportStateCreateInfo viewportState{};
-    viewportState.viewportCount = 1;
-    viewportState.scissorCount = 1;
-    vk::PipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.dynamicStateCount = 2;
-    dynamicState.pDynamicStates = dynamicStates;
-
-    pipelineCreateInfo.pDynamicState = &dynamicState;
-
-    pipelineCreateInfo.pNext = &pipelineRendering;
-    pipelineCreateInfo.stageCount = 2;
-    pipelineCreateInfo.pStages = shaderStages;
-    pipelineCreateInfo.pVertexInputState = &vertexInput;
-    pipelineCreateInfo.pInputAssemblyState = &inputAssembly;
-    pipelineCreateInfo.pRasterizationState = &raster;
-    pipelineCreateInfo.pMultisampleState = &ms;
-    pipelineCreateInfo.pColorBlendState = &blend;
-    pipelineCreateInfo.layout = pipelineLayout;
-    pipelineCreateInfo.pViewportState = &viewportState;
-
-    auto [result, graphicsPipeline] = vkContext->GetDevice().createGraphicsPipeline(nullptr, pipelineCreateInfo);
-    if (result != vk::Result::eSuccess)
+    Ref<CacaoSynchronization> synchronization = device->CreateSynchronization(swapchain->GetImageCount());
+    if (!synchronization)
     {
-        std::cerr << "Failed to create graphics pipeline: " << vk::to_string(result) << std::endl;
+        std::cerr << "Fatal Error: Failed to create Cacao synchronization objects." << std::endl;
+        return EXIT_FAILURE;
+    }
+    auto compiler = instance->CreateShaderCompiler();
+    if (!compiler)
+    {
+        std::cerr << "Fatal Error: Failed to create Cacao shader compiler." << std::endl;
+        return EXIT_FAILURE;
+    }
+    // ...  着色器编译部分 ...
+    ShaderCreateInfo shaderCreateInfo;
+    shaderCreateInfo.Stage = ShaderStage::Vertex;
+    shaderCreateInfo.SourcePath = "test.slang";
+    shaderCreateInfo.EntryPoint = "mainVS";
+    auto vertexShaderModule = compiler->CompileOrLoad(device, shaderCreateInfo);
+    if (!vertexShaderModule)
+    {
+        std::cerr << "Fatal Error: Failed to create vertex shader module." << std::endl;
+        return EXIT_FAILURE;
     }
 
-    vk::CommandPoolCreateInfo commandPoolInfo = vk::CommandPoolCreateInfo()
-                                                .setQueueFamilyIndex(vkContext->GetGraphicsFamilyIndex())
-                                                .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);;
-    vk::CommandPool commandPool = vkContext->GetDevice().createCommandPool(commandPoolInfo);
-    vk::CommandBufferAllocateInfo commandBufferAllocInfo = vk::CommandBufferAllocateInfo()
-                                                           .setCommandPool(commandPool)
-                                                           .setLevel(vk::CommandBufferLevel::ePrimary)
-                                                           .setCommandBufferCount(3);
-    std::vector<vk::CommandBuffer> commandBuffers =
-        vkContext->GetDevice().allocateCommandBuffers(commandBufferAllocInfo);
-    auto graphicsQueue = vkContext->GetGraphicsQueue();
-    auto presentQueue = vkContext->GetPresentQueue();
+    shaderCreateInfo.Stage = ShaderStage::Fragment;
+    shaderCreateInfo.SourcePath = "test.slang";
+    shaderCreateInfo.EntryPoint = "mainPS";
+    auto fragmentShaderModule = compiler->CompileOrLoad(device, shaderCreateInfo);
+    if (!fragmentShaderModule)
+    {
+        std::cerr << "Fatal Error: Failed to create fragment shader module." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    // === 创建管线布局 ===
+    PipelineLayoutCreateInfo layoutCreateInfo;
+    // 如果没有描述符集和推送常量，可以留空
+    // layoutCreateInfo. DescriptorSetLayouts = {};
+    // layoutCreateInfo.PushConstantRanges = {};
+    auto pipelineLayout = device->CreatePipelineLayout(layoutCreateInfo);
+
+    // === 创建图形管线 ===
+    GraphicsPipelineCreateInfo pipelineCreateInfo;
+
+    // 1. 着色器
+    pipelineCreateInfo.Shaders = {vertexShaderModule, fragmentShaderModule};
+
+    // 2. 顶点输入（无顶点缓冲区，使用着色器内置数组）
+    pipelineCreateInfo.VertexBindings = {};
+    pipelineCreateInfo.VertexAttributes = {};
+
+    // 3. 输入汇编
+    pipelineCreateInfo.InputAssembly.Topology = PrimitiveTopology::TriangleList;
+    pipelineCreateInfo.InputAssembly.PrimitiveRestartEnable = false;
+
+    // 4. 光栅化状态
+    pipelineCreateInfo.Rasterizer.PolygonMode = PolygonMode::Fill;
+    pipelineCreateInfo.Rasterizer.CullMode = CullMode::Back;
+    pipelineCreateInfo.Rasterizer.FrontFace = FrontFace::Clockwise;
+    pipelineCreateInfo.Rasterizer.LineWidth = 1.0f;
+    pipelineCreateInfo.Rasterizer.DepthClampEnable = false;
+    pipelineCreateInfo.Rasterizer.RasterizerDiscardEnable = false;
+    pipelineCreateInfo.Rasterizer.DepthBiasEnable = false;
+
+    // 5. 多重采样状态
+    pipelineCreateInfo.Multisample.RasterizationSamples = 1;
+    pipelineCreateInfo.Multisample.SampleShadingEnable = false;
+    pipelineCreateInfo.Multisample.AlphaToCoverageEnable = false;
+    pipelineCreateInfo.Multisample.AlphaToOneEnable = false;
+
+    // 6. 深度模板状态（禁用深度测试）
+    pipelineCreateInfo.DepthStencil.DepthTestEnable = false;
+    pipelineCreateInfo.DepthStencil.DepthWriteEnable = false;
+    pipelineCreateInfo.DepthStencil.StencilTestEnable = false;
+
+    // 7. 颜色混合状态
+    ColorBlendAttachmentState colorBlendAttachment;
+    colorBlendAttachment.BlendEnable = false;
+    colorBlendAttachment.ColorWriteMask = ColorComponentFlags::All;
+    pipelineCreateInfo.ColorBlend.Attachments = {colorBlendAttachment};
+    pipelineCreateInfo.ColorBlend.LogicOpEnable = false;
+
+    // 8. 动态渲染格式（根据交换链格式设置）
+    pipelineCreateInfo.ColorAttachmentFormats = {swapchain->GetFormat()}; // 或 Format::BGRA8_UNORM
+    pipelineCreateInfo.DepthStencilFormat = Format::UNDEFINED; // 不使用深度缓冲
+
+    // 9. 管线布局
+    pipelineCreateInfo.Layout = pipelineLayout;
+
+    // 10.  管线缓存
+    pipelineCreateInfo.Cache = nullptr;
+
+    // 创建图形管线
+    auto graphicsPipeline = device->CreateGraphicsPipeline(pipelineCreateInfo);
+    if (!graphicsPipeline)
+    {
+        std::cerr << "Fatal Error: Failed to create graphics pipeline." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Graphics pipeline created successfully!" << std::endl;
+    std::vector<Ref<CacaoCommandBufferEncoder>> commandEncoders(swapchain->GetImageCount());
+    for (uint32_t i = 0; i < commandEncoders.size(); i++)
+    {
+        commandEncoders[i] = device->CreateCommandBufferEncoder(CommandBufferType::Primary);
+    }
+
+    auto presentQueue = surface->GetPresentQueue(device);
+    auto graphicsQueue = device->GetQueue(QueueType::Graphics, 0);
     int frame = 0;
     while (isRunning)
     {
@@ -227,120 +279,73 @@ int main()
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        syncContext->WaitForFrame(frame);
-
-        uint32_t imageIndex;
-        try
-        {
-            imageIndex = syncContext->AcquireNextImageIndex(frame);
-        }
-        catch (vk::OutOfDateKHRError)
+        synchronization->WaitForFrame(frame);
+        int imageIndex;
+        if (swapchain->AcquireNextImage(synchronization, frame, imageIndex) != Result::Success)
         {
             continue;
         }
-
-        syncContext->ResetFrameFence(frame);
-
-        vk::CommandBuffer cmd = commandBuffers[frame];
-        cmd.reset();
-        cmd.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-
-        vk::ImageMemoryBarrier barrier{};
-        barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-        barrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-        barrier.oldLayout = vk::ImageLayout::eUndefined;
-        barrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        barrier.image = vkContext->GetSwapChainImage(imageIndex);
-        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.layerCount = 1;
-
-        cmd.pipelineBarrier(
-            vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            {}, 0, nullptr, 0, nullptr, 1, &barrier
+        synchronization->ResetFrameFence(frame);
+        auto texture = swapchain->GetBackBuffer(imageIndex);
+        auto cmd = commandEncoders[frame];
+        cmd->Reset();
+        cmd->Begin({true});
+        TextureBarrier barrier;
+        barrier.Texture = texture;
+        barrier.OldLayout = ImageLayout::Undefined;
+        barrier.NewLayout = ImageLayout::ColorAttachment;
+        barrier.SrcAccess = AccessFlags::None;
+        barrier.DstAccess = AccessFlags::ColorAttachmentWrite;
+        barrier.SubresourceRange.LayerCount = 1;
+        barrier.SubresourceRange.LevelCount = 1;
+        barrier.SubresourceRange.AspectMask = ImageAspectFlags::Color;
+        cmd->PipelineBarrier(
+            PipelineStage::TopOfPipe,
+            PipelineStage::ColorAttachmentOutput,
+            {barrier}
         );
-
-        vk::RenderingAttachmentInfo colorAttachment{};
-        colorAttachment.imageView = vkContext->GetSwapChainImageView(imageIndex);
-        colorAttachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-        colorAttachment.clearValue = vk::ClearValue(vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 1.f}));
-
-        vk::RenderingInfo renderInfo{};
-        renderInfo.renderArea = vk::Rect2D({0, 0}, vkContext->GetSwapChainExtent());
-        renderInfo.layerCount = 1;
-        renderInfo.colorAttachmentCount = 1;
-        renderInfo.pColorAttachments = &colorAttachment;
-
-        cmd.beginRendering(renderInfo);
-        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
-
-        cmd.setViewport(0, vk::Viewport(0, 0, (float)vkContext->GetSwapChainExtent().width,
-                                        (float)vkContext->GetSwapChainExtent().height, 0, 1));
-        cmd.setScissor(0, vk::Rect2D({0, 0}, vkContext->GetSwapChainExtent()));
-
-        cmd.draw(3, 1, 0, 0);
-        cmd.endRendering();
-
-        vk::ImageMemoryBarrier presentBarrier{};
-        presentBarrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-        presentBarrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
-        presentBarrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-        presentBarrier.dstAccessMask = {};
-        presentBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        presentBarrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
-        presentBarrier.image = vkContext->GetSwapChainImage(imageIndex);
-        presentBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        presentBarrier.subresourceRange.levelCount = 1;
-        presentBarrier.subresourceRange.layerCount = 1;
-
-        cmd.pipelineBarrier(
-            vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            vk::PipelineStageFlagBits::eBottomOfPipe,
-            {}, 0, nullptr, 0, nullptr, 1, &presentBarrier
+        RenderingAttachmentInfo colorAttachment;
+        colorAttachment.Texture = texture;
+        colorAttachment.LoadOp = AttachmentLoadOp::Clear;
+        colorAttachment.StoreOp = AttachmentStoreOp::Store;
+        colorAttachment.ClearValue = ClearValue({0.f, 0.f, 0.f, 1.f});
+        RenderingInfo renderInfo;
+        renderInfo.RenderArea = {0, 0, swapchain->GetExtent().width, swapchain->GetExtent().height};
+        renderInfo.LayerCount = 1;
+        renderInfo.ColorAttachments = {colorAttachment};
+        cmd->BeginRendering(renderInfo);
+        cmd->SetViewport({
+            0.0f, 0.0f,
+            static_cast<float>(swapchain->GetExtent().width),
+            static_cast<float>(swapchain->GetExtent().height),
+            0.0f, 1.0f
+        });
+        cmd->SetScissor({0, 0, swapchain->GetExtent().width, swapchain->GetExtent().height});
+        cmd->BindGraphicsPipeline(graphicsPipeline);
+        cmd->Draw(3, 1, 0, 0);
+        cmd->EndRendering();
+        TextureBarrier barrier2;
+        barrier2.Texture = texture;
+        barrier2.OldLayout = ImageLayout::ColorAttachment;
+        barrier2.NewLayout = ImageLayout::Present;
+        barrier2.SrcAccess = AccessFlags::ColorAttachmentWrite;
+        barrier2.DstAccess = AccessFlags::None;
+        barrier2.SubresourceRange.LayerCount = 1;
+        barrier2.SubresourceRange.LevelCount = 1;
+        barrier2.SubresourceRange.AspectMask = ImageAspectFlags::Color;
+        cmd->PipelineBarrier(
+            PipelineStage::ColorAttachmentOutput,
+            PipelineStage::BottomOfPipe,
+            {barrier2}
         );
+        cmd->End();
 
-        cmd.end();
+        graphicsQueue->Submit(cmd, synchronization, frame);
 
-        vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
-        vk::SubmitInfo submit{};
-        submit.waitSemaphoreCount = 1;
-        submit.pWaitSemaphores = &syncContext->GetImageSemaphore(frame);
-        submit.pWaitDstStageMask = &waitStage;
-        submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &cmd;
-        submit.signalSemaphoreCount = 1;
-        submit.pSignalSemaphores = &syncContext->GetRenderSemaphore(frame);
-
-        graphicsQueue.submit(submit, syncContext->GetInFlightFence(frame));
-        vk::PresentInfoKHR present{};
-        present.waitSemaphoreCount = 1;
-        present.pWaitSemaphores = &syncContext->GetRenderSemaphore(frame);
-        present.swapchainCount = 1;
-        present.pSwapchains = &vkContext->GetSwapChain();
-        present.pImageIndices = &imageIndex;
-
-        try
-        {
-            presentQueue.presentKHR(present);
-        }
-        catch (vk::OutOfDateKHRError)
-        {
-            // 忽略，下一次循环处理
-        }
-
-        // 8. 增加帧计数，实现双重缓冲循环
-        frame = (frame + 1) % 3;
+        swapchain->Present(presentQueue, synchronization, frame);
+        frame = (frame + 1) % commandEncoders.size();
     }
-
-    // 退出循环后，等待设备空闲再销毁资源
-    vkContext->WaitIdle();
-
+    device->WaitIdle();
     DestroyWindow(hWnd);
     UnregisterClass(className, hInstance);
 
