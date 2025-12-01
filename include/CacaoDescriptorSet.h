@@ -1,21 +1,18 @@
 #ifndef CACAO_CACAODESCRIPTORSET_H
 #define CACAO_CACAODESCRIPTORSET_H
 #include "CacaoBarrier.h"
+
 namespace Cacao
+
 {
     enum class DescriptorType;
-}
-namespace Cacao
-{
     class CacaoTextureView;
-}
-namespace Cacao
-{
     class CacaoSampler;
     class CacaoTexture;
     class CacaoBuffer;
     class CacaoDescriptorSetLayout;
     class CacaoDescriptorPool;
+
     struct BufferWriteInfo
     {
         uint32_t Binding = 0;
@@ -25,6 +22,7 @@ namespace Cacao
         DescriptorType Type;
         uint32_t ArrayElement = 0;
     };
+
     struct TextureWriteInfo
     {
         uint32_t Binding = 0;
@@ -34,30 +32,34 @@ namespace Cacao
         Ref<CacaoSampler> Sampler = nullptr;
         uint32_t ArrayElement = 0;
     };
+
     struct AccelerationStructureWriteInfo
     {
         uint32_t Binding = 0;
         const void* AccelerationStructureHandle = nullptr;
         DescriptorType Type;
     };
+
     struct BufferWriteInfos
     {
         uint32_t Binding = 0;
         std::vector<Ref<CacaoBuffer>> Buffers;
-        std::vector<uint64_t> Offsets; 
-        std::vector<uint64_t> Ranges; 
+        std::vector<uint64_t> Offsets;
+        std::vector<uint64_t> Ranges;
         DescriptorType Type;
         uint32_t ArrayElement = 0;
     };
+
     struct TextureWriteInfos
     {
         uint32_t Binding = 0;
         std::vector<Ref<CacaoTextureView>> TextureViews;
-        std::vector<ImageLayout> Layouts; 
+        std::vector<ImageLayout> Layouts;
         DescriptorType Type;
-        std::vector<Ref<CacaoSampler>> Samplers; 
+        std::vector<Ref<CacaoSampler>> Samplers;
         uint32_t ArrayElement = 0;
     };
+
     struct AccelerationStructureWriteInfos
     {
         uint32_t Binding = 0;
@@ -65,6 +67,7 @@ namespace Cacao
         DescriptorType Type;
         uint32_t ArrayElement = 0;
     };
+
     class CACAO_API CacaoDescriptorSet : public std::enable_shared_from_this<CacaoDescriptorSet>
     {
     public:
@@ -78,4 +81,4 @@ namespace Cacao
         virtual void Update() = 0;
     };
 }
-#endif 
+#endif

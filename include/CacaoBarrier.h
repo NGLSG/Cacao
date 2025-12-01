@@ -1,8 +1,12 @@
 #ifndef CACAO_CACAOBARRIER_H
 #define CACAO_CACAOBARRIER_H
 #include <vector>
+
 namespace Cacao
 {
+    class CacaoBuffer;
+    class CacaoTexture;
+
     enum class PipelineStage : uint32_t
     {
         None = 0,
@@ -24,10 +28,12 @@ namespace Cacao
         AllGraphics = 1 << 15,
         AllCommands = 1 << 16,
     };
+
     inline PipelineStage operator|(PipelineStage a, PipelineStage b)
     {
         return static_cast<PipelineStage>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
     }
+
     enum class AccessFlags : uint32_t
     {
         None = 0,
@@ -49,10 +55,12 @@ namespace Cacao
         MemoryRead = 1 << 15,
         MemoryWrite = 1 << 16
     };
+
     inline AccessFlags operator|(AccessFlags a, AccessFlags b)
     {
         return static_cast<AccessFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
     }
+
     enum class ImageLayout
     {
         Undefined,
@@ -66,6 +74,7 @@ namespace Cacao
         Present,
         Preinitialized
     };
+
     enum class ImageAspectFlags : uint32_t
     {
         None = 0,
@@ -77,19 +86,23 @@ namespace Cacao
         Plane1 = 1 << 5,
         Plane2 = 1 << 6
     };
+
     inline ImageAspectFlags operator|(ImageAspectFlags a, ImageAspectFlags b)
     {
         return static_cast<ImageAspectFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
     }
+
     inline bool operator&(ImageAspectFlags a, ImageAspectFlags b)
     {
         return (static_cast<uint32_t>(a) & static_cast<uint32_t>(b)) != 0;
     }
+
     inline ImageAspectFlags& operator|=(ImageAspectFlags& a, ImageAspectFlags b)
     {
         a = a | b;
         return a;
     }
+
     struct ImageSubresourceRange
     {
         uint32_t BaseMipLevel = 0;
@@ -100,13 +113,13 @@ namespace Cacao
         static ImageSubresourceRange All() { return {0, UINT32_MAX, 0, UINT32_MAX}; }
         static ImageSubresourceRange Mip0() { return {0, 1, 0, UINT32_MAX}; }
     };
-    class CacaoBuffer;
-    class CacaoTexture;
+
     struct MemoryBarrier
     {
         AccessFlags SrcAccess;
         AccessFlags DstAccess;
     };
+
     struct BufferBarrier
     {
         Ref<CacaoBuffer> Buffer;
@@ -117,6 +130,7 @@ namespace Cacao
         uint32_t SrcQueueFamilyIndex = UINT32_MAX;
         uint32_t DstQueueFamilyIndex = UINT32_MAX;
     };
+
     struct TextureBarrier
     {
         Ref<CacaoTexture> Texture;

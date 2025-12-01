@@ -2,6 +2,7 @@
 #define CACAO_CACAO_HPP
 #include "Core.h"
 #include "PipelineDefs.h"
+#include "CacaoBarrier.h"
 #include "CacaoInstance.h"
 #include "CacaoAdapter.h"
 #include "CacaoDevice.h"
@@ -12,7 +13,7 @@
 #include "CacaoTexture.h"
 #include "CacaoSampler.h"
 #include "CacaoSynchronization.h"
-#include "CacaoBarrier.h"
+
 #include "CacaoShaderModule.h"
 #include "CacaoShaderCompiler.h"
 #include "CacaoDescriptorSetLayout.h"
@@ -21,4 +22,4 @@
 #include "CacaoPipelineLayout.h"
 #include "CacaoPipeline.h"
 #include "CacaoCommandBufferEncoder.h"
-#endif 
+#endif

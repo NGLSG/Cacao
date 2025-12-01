@@ -1,6 +1,7 @@
 #ifndef CACAO_CACAOCOMMANDBUFFERENCODER_H
 #define CACAO_CACAOCOMMANDBUFFERENCODER_H
 #include "CacaoBarrier.h"
+
 namespace Cacao
 {
     class CacaoBuffer;
@@ -8,6 +9,8 @@ namespace Cacao
     class CacaoGraphicsPipeline;
     class CacaoComputePipeline;
     class CacaoDescriptorSet;
+    struct MemoryBarrier;
+
     struct Viewport
     {
         float X;
@@ -17,6 +20,7 @@ namespace Cacao
         float MinDepth = 0.0f;
         float MaxDepth = 1.0f;
     };
+
     struct Rect2D
     {
         int32_t OffsetX;
@@ -24,17 +28,20 @@ namespace Cacao
         uint32_t Width;
         uint32_t Height;
     };
+
     struct ClearValue
     {
         union
         {
-            float Color[4]; 
+            float Color[4];
+
             struct
             {
                 float Depth;
                 uint32_t Stencil;
             } DepthStencil;
         };
+
         static ClearValue ColorFloat(float r, float g, float b, float a)
         {
             ClearValue v;
@@ -44,6 +51,7 @@ namespace Cacao
             v.Color[3] = a;
             return v;
         }
+
         static ClearValue DepthStencilValue(float d, uint32_t s)
         {
             ClearValue v;
@@ -52,27 +60,32 @@ namespace Cacao
             return v;
         }
     };
+
     struct ClearDepthStencilValue
     {
         float Depth;
         uint32_t Stencil;
     };
+
     enum class IndexType
     {
         UInt16,
         UInt32
     };
+
     enum class AttachmentLoadOp
     {
-        Load, 
-        Clear, 
-        DontCare 
+        Load,
+        Clear,
+        DontCare
     };
+
     enum class AttachmentStoreOp
     {
-        Store, 
-        DontCare 
+        Store,
+        DontCare
     };
+
     struct RenderingAttachmentInfo
     {
         Ref<CacaoTexture> Texture;
@@ -81,6 +94,7 @@ namespace Cacao
         ClearValue ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
         ClearDepthStencilValue ClearDepthStencil = {1.0f, 0};
     };
+
     struct RenderingInfo
     {
         Rect2D RenderArea;
@@ -89,19 +103,23 @@ namespace Cacao
         Ref<RenderingAttachmentInfo> StencilAttachment = nullptr;
         uint32_t LayerCount = 1;
     };
+
     struct CommandBufferInheritanceInfo
     {
         const RenderingInfo* pRenderingInfo = nullptr;
         bool OcclusionQueryEnable = false;
         bool PipelineStatistics = false;
     };
+
     struct CommandBufferBeginInfo
     {
         bool OneTimeSubmit = true;
         bool SimultaneousUse = false;
         const CommandBufferInheritanceInfo* InheritanceInfo = nullptr;
     };
+
     enum class CommandBufferType;
+
     class CACAO_API CacaoCommandBufferEncoder : public std::enable_shared_from_this<CacaoCommandBufferEncoder>
     {
     public:
@@ -145,20 +163,14 @@ namespace Cacao
             PipelineStage srcStage,
             PipelineStage dstStage,
             const std::vector<TextureBarrier>& textureBarriers
-        )
-        {
-            PipelineBarrier(srcStage, dstStage, {}, {}, textureBarriers);
-        }
+        );
         virtual void PipelineBarrier(
             PipelineStage srcStage,
             PipelineStage dstStage,
             const std::vector<BufferBarrier>& bufferBarriers
-        )
-        {
-            PipelineBarrier(srcStage, dstStage, {}, bufferBarriers, {});
-        }
+        );
         virtual ~CacaoCommandBufferEncoder() = default;
         virtual CommandBufferType GetCommandBufferType() const =0;
     };
-} 
-#endif 
+}
+#endif
