@@ -355,7 +355,7 @@ namespace Cacao
     {
         return VKPipelineLayout::Create(shared_from_this(), info);
     }
-    Ref<CacaoPipelineCache> VKDevice::CreatePipelineCache(std::span<const uint8_t> initialData)
+    Ref<PipelineCache> VKDevice::CreatePipelineCache(std::span<const uint8_t> initialData)
     {
         return VKPipelineCache::Create(shared_from_this(), initialData);
     }

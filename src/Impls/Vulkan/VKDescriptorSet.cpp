@@ -1,5 +1,5 @@
 #include "Impls/Vulkan/VKDescriptorSet.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKDescriptorPool.h"
 #include "Impls/Vulkan/VKDescriptorSetLayout.h"
@@ -24,7 +24,7 @@ namespace Cacao
         {
             auto vkView = std::static_pointer_cast<VKTextureView>(info.TextureView);
             vkInfo.imageView = vkView->GetHandle();
-            vkInfo.imageLayout = Converter::Convert(info.Layout);
+            vkInfo.imageLayout = VKConverter::Convert(info.Layout);
         }
         if (info.Sampler)
         {
@@ -91,7 +91,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = info.Binding;
         vkWriteDescriptorSet.dstArrayElement = info.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Converter::Convert(info.Type);
+        vkWriteDescriptorSet.descriptorType = VKConverter::Convert(info.Type);
         vkWriteDescriptorSet.descriptorCount = 1;
         vkWriteDescriptorSet.pBufferInfo = pBufferInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -104,7 +104,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = info.Binding;
         vkWriteDescriptorSet.dstArrayElement = info.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Converter::Convert(info.Type);
+        vkWriteDescriptorSet.descriptorType = VKConverter::Convert(info.Type);
         vkWriteDescriptorSet.descriptorCount = 1;
         vkWriteDescriptorSet.pImageInfo = pImageInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -142,7 +142,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = info.Binding;
         vkWriteDescriptorSet.dstArrayElement = 0;
-        vkWriteDescriptorSet.descriptorType = Converter::Convert(info.Type);
+        vkWriteDescriptorSet.descriptorType = VKConverter::Convert(info.Type);
         vkWriteDescriptorSet.descriptorCount = 1;
         vkWriteDescriptorSet.pNext = pASInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -169,7 +169,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = infos.Binding;
         vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Converter::Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorType = VKConverter::Convert(infos.Type);
         vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pBufferInfoArray->size());
         vkWriteDescriptorSet.pBufferInfo = pBufferInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -196,7 +196,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = infos.Binding;
         vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Converter::Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorType = VKConverter::Convert(infos.Type);
         vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pImageInfoArray->size());
         vkWriteDescriptorSet.pImageInfo = pImageInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -246,7 +246,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = infos.Binding;
         vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Converter::Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorType = VKConverter::Convert(infos.Type);
         vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pASHandleArray->size());
         vkWriteDescriptorSet.pNext = pASInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);

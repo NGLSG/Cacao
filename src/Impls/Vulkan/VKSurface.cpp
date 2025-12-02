@@ -123,14 +123,48 @@ namespace Cacao
             case vk::ColorSpaceKHR::eSrgbNonlinear:
                 format.colorSpace = ColorSpace::SRGB_NONLINEAR;
                 break;
+            case vk::ColorSpaceKHR::eExtendedSrgbLinearEXT:
+                format.colorSpace = ColorSpace::EXTENDED_SRGB_LINEAR;
+                break;
+            case vk::ColorSpaceKHR::eExtendedSrgbNonlinearEXT:
+                format.colorSpace = ColorSpace::EXTENDED_SRGB_NONLINEAR;
+                break;
             case vk::ColorSpaceKHR::eHdr10St2084EXT:
                 format.colorSpace = ColorSpace::HDR10_ST2084;
                 break;
-#ifdef VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT
-            case vk::ColorSpaceKHR::eDisplayP3NonlinearEXT:
-                format.colorSpace = ColorSpace::DISPLAY_P3;
+            case vk::ColorSpaceKHR::eHdr10HlgEXT:
+                format.colorSpace = ColorSpace::HDR10_HLG;
                 break;
-#endif
+            case vk::ColorSpaceKHR::eDolbyvisionEXT:
+                format.colorSpace = ColorSpace::DOLBY_VISION;
+                break;
+            case vk::ColorSpaceKHR::eAdobergbLinearEXT:
+                format.colorSpace = ColorSpace::ADOBERGB_LINEAR;
+                break;
+            case vk::ColorSpaceKHR::eAdobergbNonlinearEXT:
+                format.colorSpace = ColorSpace::ADOBERGB_NONLINEAR;
+                break;
+            case vk::ColorSpaceKHR::eDisplayP3NonlinearEXT:
+                format.colorSpace = ColorSpace::DISPLAY_P3_NONLINEAR;
+                break;
+            case vk::ColorSpaceKHR::eDisplayP3LinearEXT:
+                format.colorSpace = ColorSpace::DISPLAY_P3_LINEAR;
+                break;
+            case vk::ColorSpaceKHR::eDciP3NonlinearEXT:
+                format.colorSpace = ColorSpace::DCI_P3_NONLINEAR;
+                break;
+            case vk::ColorSpaceKHR::eBt709LinearEXT:
+                format.colorSpace = ColorSpace::BT709_LINEAR;
+                break;
+            case vk::ColorSpaceKHR::eBt709NonlinearEXT:
+                format.colorSpace = ColorSpace::BT709_NONLINEAR;
+                break;
+            case vk::ColorSpaceKHR::eBt2020LinearEXT:
+                format.colorSpace = ColorSpace::BT2020_LINEAR;
+                break;
+            case vk::ColorSpaceKHR::ePassThroughEXT:
+                format.colorSpace = ColorSpace::PASS_THROUGH;
+                break;
             default:
                 format.colorSpace = ColorSpace::SRGB_NONLINEAR;
                 break;

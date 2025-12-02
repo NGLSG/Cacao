@@ -16,7 +16,7 @@ namespace Cacao
 {
     enum class BufferMemoryUsage;
     enum class BufferUsageFlags : uint32_t;
-    namespace FastConvert
+    namespace VKFastConvert
     {
         inline constexpr VkPipelineStageFlags kPipelineStageLUT[] = {
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,           
@@ -136,7 +136,7 @@ namespace Cacao
             return result;
         }
     }
-    class Converter
+    class VKConverter
     {
     public:
         static vk::BufferUsageFlags Convert(BufferUsageFlags usage);

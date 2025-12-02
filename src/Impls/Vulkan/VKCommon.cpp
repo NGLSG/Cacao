@@ -1,8 +1,8 @@
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Buffer.h"
 namespace Cacao
 {
-    vk::BufferUsageFlags Converter::Convert(BufferUsageFlags usage)
+    vk::BufferUsageFlags VKConverter::Convert(BufferUsageFlags usage)
     {
         vk::BufferUsageFlags usageFlags;
         if (usage & BufferUsageFlags::VertexBuffer)
@@ -25,7 +25,7 @@ namespace Cacao
             usageFlags |= vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
         return usageFlags;
     }
-    VmaMemoryUsage Converter::Convert(BufferMemoryUsage usage)
+    VmaMemoryUsage VKConverter::Convert(BufferMemoryUsage usage)
     {
         switch (usage)
         {
@@ -36,26 +36,81 @@ namespace Cacao
         default: return VMA_MEMORY_USAGE_GPU_ONLY;
         }
     }
-    vk::Format Converter::Convert(Format format)
+    vk::Format VKConverter::Convert(Format format)
     {
         switch (format)
         {
-        case Format::RGBA8_UNORM: return vk::Format::eR8G8B8A8Unorm;
-        case Format::BGRA8_UNORM: return vk::Format::eB8G8R8A8Unorm;
-        case Format::RGBA8_SRGB: return vk::Format::eR8G8B8A8Srgb;
-        case Format::BGRA8_SRGB: return vk::Format::eB8G8R8A8Srgb;
-        case Format::RGBA16_FLOAT: return vk::Format::eR16G16B16A16Sfloat;
-        case Format::RGB10A2_UNORM: return vk::Format::eA2B10G10R10UnormPack32;
-        case Format::RGBA32_FLOAT: return vk::Format::eR32G32B32A32Sfloat;
         case Format::R8_UNORM: return vk::Format::eR8Unorm;
+        case Format::R8_SNORM: return vk::Format::eR8Snorm;
+        case Format::R8_UINT: return vk::Format::eR8Uint;
+        case Format::R8_SINT: return vk::Format::eR8Sint;
+        case Format::RG8_UNORM: return vk::Format::eR8G8Unorm;
+        case Format::RG8_SNORM: return vk::Format::eR8G8Snorm;
+        case Format::RG8_UINT: return vk::Format::eR8G8Uint;
+        case Format::RG8_SINT: return vk::Format::eR8G8Sint;
+        case Format::RGBA8_UNORM: return vk::Format::eR8G8B8A8Unorm;
+        case Format::RGBA8_SNORM: return vk::Format::eR8G8B8A8Snorm;
+        case Format::RGBA8_UINT: return vk::Format::eR8G8B8A8Uint;
+        case Format::RGBA8_SINT: return vk::Format::eR8G8B8A8Sint;
+        case Format::RGBA8_SRGB: return vk::Format::eR8G8B8A8Srgb;
+        case Format::BGRA8_UNORM: return vk::Format::eB8G8R8A8Unorm;
+        case Format::BGRA8_SRGB: return vk::Format::eB8G8R8A8Srgb;
+        case Format::R16_UNORM: return vk::Format::eR16Unorm;
+        case Format::R16_SNORM: return vk::Format::eR16Snorm;
+        case Format::R16_UINT: return vk::Format::eR16Uint;
+        case Format::R16_SINT: return vk::Format::eR16Sint;
         case Format::R16_FLOAT: return vk::Format::eR16Sfloat;
-        case Format::D32F: return vk::Format::eD32Sfloat;
-        case Format::D24S8: return vk::Format::eD24UnormS8Uint;
-        case Format::UNDEFINED: return vk::Format::eUndefined;
+        case Format::RG16_UNORM: return vk::Format::eR16G16Unorm;
+        case Format::RG16_SNORM: return vk::Format::eR16G16Snorm;
+        case Format::RG16_UINT: return vk::Format::eR16G16Uint;
+        case Format::RG16_SINT: return vk::Format::eR16G16Sint;
+        case Format::RG16_FLOAT: return vk::Format::eR16G16Sfloat;
+        case Format::RGBA16_UNORM: return vk::Format::eR16G16B16A16Unorm;
+        case Format::RGBA16_SNORM: return vk::Format::eR16G16B16A16Snorm;
+        case Format::RGBA16_UINT: return vk::Format::eR16G16B16A16Uint;
+        case Format::RGBA16_SINT: return vk::Format::eR16G16B16A16Sint;
+        case Format::RGBA16_FLOAT: return vk::Format::eR16G16B16A16Sfloat;
+        case Format::R32_UINT: return vk::Format::eR32Uint;
+        case Format::R32_SINT: return vk::Format::eR32Sint;
+        case Format::R32_FLOAT: return vk::Format::eR32Sfloat;
+        case Format::RG32_UINT: return vk::Format::eR32G32Uint;
+        case Format::RG32_SINT: return vk::Format::eR32G32Sint;
+        case Format::RG32_FLOAT: return vk::Format::eR32G32Sfloat;
+        case Format::RGB32_UINT: return vk::Format::eR32G32B32Uint;
+        case Format::RGB32_SINT: return vk::Format::eR32G32B32Sint;
+        case Format::RGB32_FLOAT: return vk::Format::eR32G32B32Sfloat;
+        case Format::RGBA32_UINT: return vk::Format::eR32G32B32A32Uint;
+        case Format::RGBA32_SINT: return vk::Format::eR32G32B32A32Sint;
+        case Format::RGBA32_FLOAT: return vk::Format::eR32G32B32A32Sfloat;
+        case Format::RGB10A2_UNORM: return vk::Format::eA2B10G10R10UnormPack32;
+        case Format::RGB10A2_UINT: return vk::Format::eA2B10G10R10UintPack32;
+        case Format::RG11B10_FLOAT: return vk::Format::eB10G11R11UfloatPack32;
+        case Format::RGB9E5_FLOAT: return vk::Format::eE5B9G9R9UfloatPack32;
+        case Format::D16_UNORM: return vk::Format::eD16Unorm;
+        case Format::D24_UNORM_S8_UINT: return vk::Format::eD24UnormS8Uint;
+        case Format::D32_FLOAT: return vk::Format::eD32Sfloat;
+        case Format::D32_FLOAT_S8_UINT: return vk::Format::eD32SfloatS8Uint;
+        case Format::S8_UINT: return vk::Format::eS8Uint;
+        case Format::BC1_RGB_UNORM: return vk::Format::eBc1RgbUnormBlock;
+        case Format::BC1_RGB_SRGB: return vk::Format::eBc1RgbSrgbBlock;
+        case Format::BC1_RGBA_UNORM: return vk::Format::eBc1RgbaUnormBlock;
+        case Format::BC1_RGBA_SRGB: return vk::Format::eBc1RgbaSrgbBlock;
+        case Format::BC2_UNORM: return vk::Format::eBc2UnormBlock;
+        case Format::BC2_SRGB: return vk::Format::eBc2SrgbBlock;
+        case Format::BC3_UNORM: return vk::Format::eBc3UnormBlock;
+        case Format::BC3_SRGB: return vk::Format::eBc3SrgbBlock;
+        case Format::BC4_UNORM: return vk::Format::eBc4UnormBlock;
+        case Format::BC4_SNORM: return vk::Format::eBc4SnormBlock;
+        case Format::BC5_UNORM: return vk::Format::eBc5UnormBlock;
+        case Format::BC5_SNORM: return vk::Format::eBc5SnormBlock;
+        case Format::BC6H_UFLOAT: return vk::Format::eBc6HUfloatBlock;
+        case Format::BC6H_SFLOAT: return vk::Format::eBc6HSfloatBlock;
+        case Format::BC7_UNORM: return vk::Format::eBc7UnormBlock;
+        case Format::BC7_SRGB: return vk::Format::eBc7SrgbBlock;
         default: throw std::runtime_error("Unsupported texture format in VKConvert");
         }
     }
-    vk::ShaderStageFlagBits Converter::ConvertShaderStageBits(ShaderStage stage)
+    vk::ShaderStageFlagBits VKConverter::ConvertShaderStageBits(ShaderStage stage)
     {
         switch (stage)
         {
@@ -68,7 +123,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown ShaderStage");
         }
     }
-    vk::ShaderStageFlags Converter::ConvertShaderStageFlags(ShaderStage stage)
+    vk::ShaderStageFlags VKConverter::ConvertShaderStageFlags(ShaderStage stage)
     {
         vk::ShaderStageFlags flags;
         if (stage == ShaderStage::None) return flags;
@@ -107,7 +162,7 @@ namespace Cacao
 #endif
         return flags;
     }
-    vk::PrimitiveTopology Converter::Convert(PrimitiveTopology topology)
+    vk::PrimitiveTopology VKConverter::Convert(PrimitiveTopology topology)
     {
         switch (topology)
         {
@@ -121,7 +176,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown PrimitiveTopology");
         }
     }
-    vk::CullModeFlags Converter::Convert(CullMode cullMode)
+    vk::CullModeFlags VKConverter::Convert(CullMode cullMode)
     {
         switch (cullMode)
         {
@@ -132,7 +187,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown CullMode");
         }
     }
-    vk::FrontFace Converter::Convert(FrontFace frontFace)
+    vk::FrontFace VKConverter::Convert(FrontFace frontFace)
     {
         switch (frontFace)
         {
@@ -141,7 +196,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown FrontFace");
         }
     }
-    vk::PolygonMode Converter::Convert(PolygonMode polygonMode)
+    vk::PolygonMode VKConverter::Convert(PolygonMode polygonMode)
     {
         switch (polygonMode)
         {
@@ -151,7 +206,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown PolygonMode");
         }
     }
-    vk::LogicOp Converter::Convert(LogicOp logicOp)
+    vk::LogicOp VKConverter::Convert(LogicOp logicOp)
     {
         switch (logicOp)
         {
@@ -174,7 +229,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown LogicOp");
         }
     }
-    vk::BlendFactor Converter::Convert(BlendFactor blendFactor)
+    vk::BlendFactor VKConverter::Convert(BlendFactor blendFactor)
     {
         switch (blendFactor)
         {
@@ -194,7 +249,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown BlendFactor");
         }
     }
-    vk::BlendOp Converter::Convert(BlendOp blendOp)
+    vk::BlendOp VKConverter::Convert(BlendOp blendOp)
     {
         switch (blendOp)
         {
@@ -206,7 +261,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown BlendOp");
         }
     }
-    vk::ColorComponentFlags Converter::Convert(ColorComponentFlags flags)
+    vk::ColorComponentFlags VKConverter::Convert(ColorComponentFlags flags)
     {
         vk::ColorComponentFlags vkFlags;
         if (flags & ColorComponentFlags::R) vkFlags |= vk::ColorComponentFlagBits::eR;
@@ -215,7 +270,7 @@ namespace Cacao
         if (flags & ColorComponentFlags::A) vkFlags |= vk::ColorComponentFlagBits::eA;
         return vkFlags;
     }
-    vk::CompareOp Converter::Convert(CompareOp compareOp)
+    vk::CompareOp VKConverter::Convert(CompareOp compareOp)
     {
         switch (compareOp)
         {
@@ -230,7 +285,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown CompareOp");
         }
     }
-    vk::StencilOp Converter::Convert(StencilOp stencilOp)
+    vk::StencilOp VKConverter::Convert(StencilOp stencilOp)
     {
         switch (stencilOp)
         {
@@ -245,7 +300,7 @@ namespace Cacao
         default: throw std::runtime_error("Unknown StencilOp");
         }
     }
-    vk::SampleCountFlagBits Converter::ConvertSampleCount(uint32_t sampleCount)
+    vk::SampleCountFlagBits VKConverter::ConvertSampleCount(uint32_t sampleCount)
     {
         switch (sampleCount)
         {
@@ -259,7 +314,7 @@ namespace Cacao
         default: throw std::runtime_error("Unsupported sample count");
         }
     }
-    vk::PipelineStageFlags Converter::Convert(PipelineStage flags)
+    vk::PipelineStageFlags VKConverter::Convert(PipelineStage flags)
     {
         vk::PipelineStageFlags vkFlags;
         if (flags == PipelineStage::None) return vk::PipelineStageFlagBits::eTopOfPipe;
@@ -295,7 +350,7 @@ namespace Cacao
             vkFlags |= vk::PipelineStageFlagBits::eAllCommands;
         return vkFlags;
     }
-    vk::AccessFlags Converter::Convert(AccessFlags flags)
+    vk::AccessFlags VKConverter::Convert(AccessFlags flags)
     {
         vk::AccessFlags vkFlags;
         if (flags == AccessFlags::None) return vkFlags;
@@ -335,7 +390,7 @@ namespace Cacao
             vkFlags |= vk::AccessFlagBits::eMemoryWrite;
         return vkFlags;
     }
-    vk::ImageLayout Converter::Convert(ImageLayout layout)
+    vk::ImageLayout VKConverter::Convert(ImageLayout layout)
     {
         switch (layout)
         {
@@ -352,7 +407,7 @@ namespace Cacao
         default: return vk::ImageLayout::eUndefined;
         }
     }
-    vk::ImageAspectFlags Converter::Convert(ImageAspectFlags flags)
+    vk::ImageAspectFlags VKConverter::Convert(ImageAspectFlags flags)
     {
         vk::ImageAspectFlags vkFlags;
         if (flags == ImageAspectFlags::None) return vkFlags;
@@ -372,7 +427,7 @@ namespace Cacao
             vkFlags |= vk::ImageAspectFlagBits::ePlane2;
         return vkFlags;
     }
-    vk::Filter Converter::Convert(Filter filter)
+    vk::Filter VKConverter::Convert(Filter filter)
     {
         switch (filter)
         {
@@ -381,7 +436,7 @@ namespace Cacao
         default: return vk::Filter::eLinear;
         }
     }
-    vk::SamplerAddressMode Converter::Convert(SamplerAddressMode addressMode)
+    vk::SamplerAddressMode VKConverter::Convert(SamplerAddressMode addressMode)
     {
         switch (addressMode)
         {
@@ -393,7 +448,7 @@ namespace Cacao
         default: return vk::SamplerAddressMode::eRepeat;
         }
     }
-    vk::SamplerMipmapMode Converter::Convert(SamplerMipmapMode mipmapMode)
+    vk::SamplerMipmapMode VKConverter::Convert(SamplerMipmapMode mipmapMode)
     {
         switch (mipmapMode)
         {
@@ -402,7 +457,7 @@ namespace Cacao
         default: return vk::SamplerMipmapMode::eLinear;
         }
     }
-    vk::BorderColor Converter::Convert(BorderColor borderColor)
+    vk::BorderColor VKConverter::Convert(BorderColor borderColor)
     {
         switch (borderColor)
         {
@@ -415,7 +470,7 @@ namespace Cacao
         default: return vk::BorderColor::eFloatOpaqueBlack;
         }
     }
-    vk::DescriptorType Converter::Convert(DescriptorType type)
+    vk::DescriptorType VKConverter::Convert(DescriptorType type)
     {
         switch (type)
         {
@@ -432,7 +487,7 @@ namespace Cacao
         default: return vk::DescriptorType::eSampler;
         }
     }
-    vk::IndexType Converter::Convert(IndexType indexType)
+    vk::IndexType VKConverter::Convert(IndexType indexType)
     {
         switch (indexType)
         {

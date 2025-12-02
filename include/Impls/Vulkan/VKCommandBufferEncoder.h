@@ -56,7 +56,7 @@ namespace Cacao
         void ComputePushConstants(const Ref<ComputePipeline>& pipeline, ShaderStage stageFlags,
                                   uint32_t offset, uint32_t size, const void* data) override;
         void PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
-                             std::span<const MemoryBarrier> globalBarriers,
+                             std::span<const CMemoryBarrier> globalBarriers,
                              std::span<const BufferBarrier> bufferBarriers,
                              std::span<const TextureBarrier> textureBarriers) override;
         void TransitionImage(

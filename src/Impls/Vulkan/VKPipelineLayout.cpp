@@ -1,5 +1,5 @@
 #include "Impls/Vulkan/VKPipelineLayout.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Impls/Vulkan/VKDescriptorSetLayout.h"
 #include "Impls/Vulkan/VKDevice.h"
 namespace Cacao
@@ -28,7 +28,7 @@ namespace Cacao
             vk::PushConstantRange vkRange{};
             vkRange.offset = range.Offset;
             vkRange.size = range.Size;
-            vkRange.stageFlags = Converter::ConvertShaderStageFlags(range.StageFlags);
+            vkRange.stageFlags = VKConverter::ConvertShaderStageFlags(range.StageFlags);
             m_pushConstantRanges[i] = vkRange;
         }
         vk::PipelineLayoutCreateInfo createInfo{};

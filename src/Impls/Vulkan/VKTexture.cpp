@@ -1,6 +1,6 @@
 #include <utility>
 #include "Impls/Vulkan/VKTexture.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Device.h"
 #include "Impls/Vulkan/VKDevice.h"
 namespace Cacao
@@ -15,7 +15,7 @@ namespace Cacao
         m_texture = std::static_pointer_cast<VKTexture>(texture);
         vk::ImageViewCreateInfo viewInfo = {};
         viewInfo.image = m_texture->GetHandle();
-        viewInfo.format = Converter::Convert(desc.FormatOverride);
+        viewInfo.format = VKConverter::Convert(desc.FormatOverride);
         switch (desc.ViewType)
         {
         case TextureType::Texture1D: viewInfo.viewType = vk::ImageViewType::e1D;
@@ -100,7 +100,7 @@ namespace Cacao
         vk::ImageCreateInfo imageInfo{};
         imageInfo.extent = vk::Extent3D(m_createInfo.Width, m_createInfo.Height, m_createInfo.Depth);
         imageInfo.arrayLayers = m_createInfo.ArrayLayers;
-        imageInfo.format = Converter::Convert(m_createInfo.Format);
+        imageInfo.format = VKConverter::Convert(m_createInfo.Format);
         switch (m_createInfo.Type)
         {
         case TextureType::Texture1D:
@@ -142,7 +142,7 @@ namespace Cacao
         if (m_createInfo.Usage & TextureUsageFlags::InputAttachment) usageFlags |= vk::ImageUsageFlagBits::eInputAttachment;
         if (m_createInfo.Usage & TextureUsageFlags::TransientAttachment) usageFlags |= vk::ImageUsageFlagBits::eTransientAttachment;
         imageInfo.usage = usageFlags;
-        imageInfo.initialLayout = Converter::Convert(m_createInfo.InitialLayout);
+        imageInfo.initialLayout = VKConverter::Convert(m_createInfo.InitialLayout);
         imageInfo.sharingMode = vk::SharingMode::eExclusive;
         VmaAllocationCreateInfo allocCreateInfo = {};
         allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;

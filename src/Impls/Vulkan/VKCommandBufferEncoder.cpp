@@ -1,5 +1,5 @@
 #include "Impls/Vulkan/VKCommandBufferEncoder.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Device.h"
 #include "Texture.h"
 #include "Impls/Vulkan/VKBuffer.h"
@@ -31,16 +31,16 @@ namespace Cacao
         {
             if (!info.ColorAttachments[i].Texture)
                 continue;
-            m_inheritanceColorFormats[i] = Converter::Convert(info.ColorAttachments[i].Texture->GetFormat());
+            m_inheritanceColorFormats[i] = VKConverter::Convert(info.ColorAttachments[i].Texture->GetFormat());
         }
         vkRenderingInfo.pColorAttachmentFormats = m_inheritanceColorFormats.data();
         if (info.DepthAttachment && info.DepthAttachment->Texture)
         {
-            vkRenderingInfo.depthAttachmentFormat = Converter::Convert(info.DepthAttachment->Texture->GetFormat());
+            vkRenderingInfo.depthAttachmentFormat = VKConverter::Convert(info.DepthAttachment->Texture->GetFormat());
         }
         if (info.StencilAttachment && info.StencilAttachment->Texture)
         {
-            vkRenderingInfo.stencilAttachmentFormat = Converter::Convert(info.StencilAttachment->Texture->GetFormat());
+            vkRenderingInfo.stencilAttachmentFormat = VKConverter::Convert(info.StencilAttachment->Texture->GetFormat());
         }
         return vkRenderingInfo;
     }
@@ -276,7 +276,7 @@ namespace Cacao
         m_commandBuffer.bindIndexBuffer(
             static_cast<VKBuffer*>(buffer.get())->GetHandle(),
             offset,
-            Converter::Convert(indexType)
+            VKConverter::Convert(indexType)
         );
     }
     void VKCommandBufferEncoder::BindDescriptorSets(const Ref<GraphicsPipeline>& pipeline,
@@ -311,7 +311,7 @@ namespace Cacao
         auto* vkLayout = static_cast<VKPipelineLayout*>(vkPipeline->GetLayout().get());
         m_commandBuffer.pushConstants(
             vkLayout->GetHandle(),
-            Converter::ConvertShaderStageFlags(stageFlags),
+            VKConverter::ConvertShaderStageFlags(stageFlags),
             offset,
             size,
             data
@@ -362,19 +362,19 @@ namespace Cacao
         auto* vkLayout = static_cast<VKPipelineLayout*>(vkPipeline->GetLayout().get());
         m_commandBuffer.pushConstants(
             vkLayout->GetHandle(),
-            Converter::ConvertShaderStageFlags(stageFlags),
+            VKConverter::ConvertShaderStageFlags(stageFlags),
             offset,
             size,
             data
         );
     }
     void VKCommandBufferEncoder::PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
-                                                 std::span<const MemoryBarrier> globalBarriers,
+                                                 std::span<const CMemoryBarrier> globalBarriers,
                                                  std::span<const BufferBarrier> bufferBarriers,
                                                  std::span<const TextureBarrier> textureBarriers)
     {
-        const VkPipelineStageFlags vkSrcStage = FastConvert::PipelineStage(srcStage);
-        const VkPipelineStageFlags vkDstStage = FastConvert::PipelineStage(dstStage);
+        const VkPipelineStageFlags vkSrcStage = VKFastConvert::PipelineStage(srcStage);
+        const VkPipelineStageFlags vkDstStage = VKFastConvert::PipelineStage(dstStage);
         m_cachedMemoryBarriers.clear();
         m_cachedBufferBarriers.clear();
         m_cachedImageBarriers.clear();
@@ -384,9 +384,9 @@ namespace Cacao
             for (size_t i = 0; i < globalBarriers.size(); ++i)
             {
                 m_cachedMemoryBarriers[i].srcAccessMask = static_cast<vk::AccessFlags>(
-                    FastConvert::AccessFlags(globalBarriers[i].SrcAccess));
+                    VKFastConvert::AccessFlags(globalBarriers[i].SrcAccess));
                 m_cachedMemoryBarriers[i].dstAccessMask = static_cast<vk::AccessFlags>(
-                    FastConvert::AccessFlags(globalBarriers[i].DstAccess));
+                    VKFastConvert::AccessFlags(globalBarriers[i].DstAccess));
             }
         }
         if (!bufferBarriers.empty())
@@ -397,8 +397,8 @@ namespace Cacao
                 const auto& barrier = bufferBarriers[i];
                 auto* vkBuffer = static_cast<VKBuffer*>(barrier.Buffer.get());
                 auto& vkBarrier = m_cachedBufferBarriers[i];
-                vkBarrier.srcAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.SrcAccess));
-                vkBarrier.dstAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.DstAccess));
+                vkBarrier.srcAccessMask = static_cast<vk::AccessFlags>(VKFastConvert::AccessFlags(barrier.SrcAccess));
+                vkBarrier.dstAccessMask = static_cast<vk::AccessFlags>(VKFastConvert::AccessFlags(barrier.DstAccess));
                 vkBarrier.srcQueueFamilyIndex = barrier.SrcQueueFamilyIndex;
                 vkBarrier.dstQueueFamilyIndex = barrier.DstQueueFamilyIndex;
                 vkBarrier.buffer = vkBuffer->GetHandle();
@@ -414,15 +414,15 @@ namespace Cacao
                 const auto& barrier = textureBarriers[i];
                 auto* vkTexture = static_cast<VKTexture*>(barrier.Texture.get());
                 auto& vkBarrier = m_cachedImageBarriers[i];
-                vkBarrier.srcAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.SrcAccess));
-                vkBarrier.dstAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.DstAccess));
-                vkBarrier.oldLayout = static_cast<vk::ImageLayout>(FastConvert::ImageLayout(barrier.OldLayout));
-                vkBarrier.newLayout = static_cast<vk::ImageLayout>(FastConvert::ImageLayout(barrier.NewLayout));
+                vkBarrier.srcAccessMask = static_cast<vk::AccessFlags>(VKFastConvert::AccessFlags(barrier.SrcAccess));
+                vkBarrier.dstAccessMask = static_cast<vk::AccessFlags>(VKFastConvert::AccessFlags(barrier.DstAccess));
+                vkBarrier.oldLayout = static_cast<vk::ImageLayout>(VKFastConvert::ImageLayout(barrier.OldLayout));
+                vkBarrier.newLayout = static_cast<vk::ImageLayout>(VKFastConvert::ImageLayout(barrier.NewLayout));
                 vkBarrier.srcQueueFamilyIndex = barrier.SrcQueueFamilyIndex;
                 vkBarrier.dstQueueFamilyIndex = barrier.DstQueueFamilyIndex;
                 vkBarrier.image = vkTexture->GetHandle();
                 vkBarrier.subresourceRange.aspectMask = static_cast<vk::ImageAspectFlags>(
-                    FastConvert::ImageAspectFlags(barrier.SubresourceRange.AspectMask));
+                    VKFastConvert::ImageAspectFlags(barrier.SubresourceRange.AspectMask));
                 vkBarrier.subresourceRange.baseMipLevel = barrier.SubresourceRange.BaseMipLevel;
                 vkBarrier.subresourceRange.levelCount = barrier.SubresourceRange.LevelCount;
                 vkBarrier.subresourceRange.baseArrayLayer = barrier.SubresourceRange.BaseArrayLayer;
@@ -715,7 +715,7 @@ namespace Cacao
             vkRegion.bufferRowLength = region.BufferRowLength;
             vkRegion.bufferImageHeight = region.BufferImageHeight;
             vkRegion.imageSubresource.aspectMask = static_cast<VkImageAspectFlags>(
-                FastConvert::ImageAspectFlags(region.ImageSubresource.AspectMask));
+                VKFastConvert::ImageAspectFlags(region.ImageSubresource.AspectMask));
             vkRegion.imageSubresource.mipLevel = region.ImageSubresource.MipLevel;
             vkRegion.imageSubresource.baseArrayLayer = region.ImageSubresource.BaseArrayLayer;
             vkRegion.imageSubresource.layerCount = region.ImageSubresource.LayerCount;
@@ -726,7 +726,7 @@ namespace Cacao
             m_commandBuffer,
             vkBuffer->GetHandle(),
             vkTexture->GetHandle(),
-            FastConvert::ImageLayout(dstImageLayout),
+            VKFastConvert::ImageLayout(dstImageLayout),
             static_cast<uint32_t>(vkRegions.size()),
             vkRegions.data()
         );

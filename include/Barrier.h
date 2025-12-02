@@ -102,7 +102,7 @@ namespace Cacao
         static ImageSubresourceRange All() { return {0, UINT32_MAX, 0, UINT32_MAX}; }
         static ImageSubresourceRange Mip0() { return {0, 1, 0, UINT32_MAX}; }
     };
-    struct MemoryBarrier
+    struct CMemoryBarrier
     {
         AccessFlags SrcAccess;
         AccessFlags DstAccess;

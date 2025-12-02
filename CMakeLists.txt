@@ -30,6 +30,15 @@ target_compile_definitions(Cacao PRIVATE CACAO_BUILD_DLL)
 target_include_directories(Cacao PUBLIC include)
 
 target_link_libraries(Cacao PUBLIC Vulkan::Vulkan slang)
+if (WIN32)
+    target_link_libraries(Cacao
+            PUBLIC
+            d3d12
+            dxgi
+            d3d11
+
+    )
+endif()
 
 add_executable(Test main.cpp)
 target_link_libraries(Test PRIVATE Cacao)

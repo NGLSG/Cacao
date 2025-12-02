@@ -9,7 +9,7 @@ namespace Cacao
     class GraphicsPipeline;
     class ComputePipeline;
     class DescriptorSet;
-    struct MemoryBarrier;
+    struct CMemoryBarrier;
     enum class ImageTransition : uint8_t
     {
         UndefinedToColorAttachment,
@@ -223,7 +223,7 @@ namespace Cacao
         virtual void PipelineBarrier(
             PipelineStage srcStage,
             PipelineStage dstStage,
-            std::span<const MemoryBarrier> globalBarriers,
+            std::span<const CMemoryBarrier> globalBarriers,
             std::span<const BufferBarrier> bufferBarriers,
             std::span<const TextureBarrier> textureBarriers
         ) = 0;

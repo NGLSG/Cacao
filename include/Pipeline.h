@@ -7,13 +7,13 @@
 namespace Cacao
 {
     class PipelineLayout;
-    class CacaoPipelineCache; 
-    class CACAO_API CacaoPipelineCache : public std::enable_shared_from_this<CacaoPipelineCache>
+    class PipelineCache; 
+    class CACAO_API PipelineCache : public std::enable_shared_from_this<PipelineCache>
     {
     public:
-        virtual ~CacaoPipelineCache() = default;
+        virtual ~PipelineCache() = default;
         virtual std::vector<uint8_t> GetData() const = 0;
-        virtual void Merge(std::span<const Ref<CacaoPipelineCache>> srcCaches) = 0;
+        virtual void Merge(std::span<const Ref<PipelineCache>> srcCaches) = 0;
     };
     struct MultisampleState
     {
@@ -37,7 +37,7 @@ namespace Cacao
         std::vector<Format> ColorAttachmentFormats;
         Format DepthStencilFormat = Format::UNDEFINED;
         Ref<PipelineLayout> Layout;
-        Ref<CacaoPipelineCache> Cache = nullptr;
+        Ref<PipelineCache> Cache = nullptr;
     };
     class CACAO_API GraphicsPipeline : public std::enable_shared_from_this<GraphicsPipeline>
     {
@@ -49,7 +49,7 @@ namespace Cacao
     {
         Ref<ShaderModule> ComputeShader;
         Ref<PipelineLayout> Layout;
-        Ref<CacaoPipelineCache> Cache = nullptr;
+        Ref<PipelineCache> Cache = nullptr;
     };
     class CACAO_API ComputePipeline : public std::enable_shared_from_this<ComputePipeline>
     {

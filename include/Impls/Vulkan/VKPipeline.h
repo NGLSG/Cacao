@@ -9,7 +9,7 @@ namespace Cacao
 namespace Cacao
 {
     class Device;
-    class CACAO_API VKPipelineCache : public CacaoPipelineCache
+    class CACAO_API VKPipelineCache : public PipelineCache
     {
     public:
         VKPipelineCache(const Ref<Device>& device,
@@ -18,7 +18,7 @@ namespace Cacao
         static Ref<VKPipelineCache> Create(const Ref<Device>& device,
                                            std::span<const uint8_t> initialData = {});
         std::vector<uint8_t> GetData() const override;
-        void Merge(std::span<const Ref<CacaoPipelineCache>> srcCaches) override;
+        void Merge(std::span<const Ref<PipelineCache>> srcCaches) override;
         vk::PipelineCache& GetHandle() { return m_pipelineCache; }
     private:
         vk::PipelineCache m_pipelineCache;

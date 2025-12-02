@@ -1,5 +1,5 @@
 #include "Impls/Vulkan/VKDescriptorSetLayout.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKSampler.h"
 namespace Cacao
@@ -19,9 +19,9 @@ namespace Cacao
     {
         vk::DescriptorSetLayoutBinding vkBinding{};
         vkBinding.binding = binding.Binding;
-        vkBinding.descriptorType = Converter::Convert(binding.Type);
+        vkBinding.descriptorType = VKConverter::Convert(binding.Type);
         vkBinding.descriptorCount = binding.Count;
-        vkBinding.stageFlags = Converter::ConvertShaderStageFlags(binding.StageFlags);
+        vkBinding.stageFlags = VKConverter::ConvertShaderStageFlags(binding.StageFlags);
         return vkBinding;
     }
     VKDescriptorSetLayout::VKDescriptorSetLayout(const Ref<Device>& device,

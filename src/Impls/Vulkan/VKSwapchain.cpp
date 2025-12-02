@@ -2,7 +2,7 @@
 #include "Adapter.h"
 #include "Synchronization.h"
 #include "Impls/Vulkan/VKAdapter.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKSurface.h"
 #include "Impls/Vulkan/VKSynchronization.h"
@@ -47,17 +47,56 @@ namespace Cacao
             swapchainCreateInfo.presentMode = vk::PresentModeKHR::eFifo;
             break;
         }
-        swapchainCreateInfo.imageFormat = Converter::Convert(createInfo.Format);
+        swapchainCreateInfo.imageFormat = VKConverter::Convert(createInfo.Format);
         switch (createInfo.ColorSpace)
         {
         case ColorSpace::SRGB_NONLINEAR:
             swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
             break;
-        case ColorSpace::LINEAR:
+        case ColorSpace::EXTENDED_SRGB_LINEAR:
             swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eExtendedSrgbLinearEXT;
+            break;
+        case ColorSpace::EXTENDED_SRGB_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eExtendedSrgbNonlinearEXT;
             break;
         case ColorSpace::HDR10_ST2084:
             swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eHdr10St2084EXT;
+            break;
+        case ColorSpace::HDR10_HLG:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eHdr10HlgEXT;
+            break;
+        case ColorSpace::DOLBY_VISION:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eDolbyvisionEXT;
+            break;
+        case ColorSpace::ADOBERGB_LINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eAdobergbLinearEXT;
+            break;
+        case ColorSpace::ADOBERGB_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eAdobergbNonlinearEXT;
+            break;
+        case ColorSpace::DISPLAY_P3_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eDisplayP3NonlinearEXT;
+            break;
+        case ColorSpace::DISPLAY_P3_LINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eDisplayP3LinearEXT;
+            break;
+        case ColorSpace::DCI_P3_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eDciP3NonlinearEXT;
+            break;
+        case ColorSpace::BT709_LINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eBt709LinearEXT;
+            break;
+        case ColorSpace::BT709_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eBt709NonlinearEXT;
+            break;
+        case ColorSpace::BT2020_LINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eBt2020LinearEXT;
+            break;
+        case ColorSpace::BT2020_NONLINEAR:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eHdr10St2084EXT; 
+            break;
+        case ColorSpace::PASS_THROUGH:
+            swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::ePassThroughEXT;
             break;
         default:
             swapchainCreateInfo.imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;

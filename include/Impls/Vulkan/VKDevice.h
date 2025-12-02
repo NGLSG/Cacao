@@ -68,7 +68,7 @@ namespace Cacao
         std::shared_ptr<DescriptorPool> CreateDescriptorPool(const DescriptorPoolCreateInfo& info) override;
         Ref<ShaderModule> CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info) override;
         Ref<PipelineLayout> CreatePipelineLayout(const PipelineLayoutCreateInfo& info) override;
-        Ref<CacaoPipelineCache> CreatePipelineCache(std::span<const uint8_t> initialData) override;
+        Ref<PipelineCache> CreatePipelineCache(std::span<const uint8_t> initialData) override;
         Ref<GraphicsPipeline> CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info) override;
         Ref<ComputePipeline> CreateComputePipeline(const ComputePipelineCreateInfo& info) override;
         Ref<Synchronization> CreateSynchronization(uint32_t maxFramesInFlight) override;

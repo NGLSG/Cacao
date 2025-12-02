@@ -1,5 +1,5 @@
 #include "Impls/Vulkan/VKPipeline.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKPipelineLayout.h"
 #include "Impls/Vulkan/VKShaderModule.h"
@@ -17,7 +17,7 @@ namespace Cacao
                 throw std::runtime_error("Null shader module in shader stages");
             }
             auto* vkShaderModule = static_cast<VKShaderModule*>(shaderModules[i].get());
-            outShaderStages[i].stage = Converter::ConvertShaderStageBits(vkShaderModule->GetStage());
+            outShaderStages[i].stage = VKConverter::ConvertShaderStageBits(vkShaderModule->GetStage());
             outShaderStages[i].module = vkShaderModule->GetHandle();
             outShaderStages[i].pName = "main";
         }
@@ -42,7 +42,7 @@ namespace Cacao
         {
             outAttributes[i].location = attributes[i].Location;
             outAttributes[i].binding = attributes[i].Binding;
-            outAttributes[i].format = Converter::Convert(attributes[i].Format);
+            outAttributes[i].format = VKConverter::Convert(attributes[i].Format);
             outAttributes[i].offset = attributes[i].Offset;
         }
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo = {};
@@ -56,7 +56,7 @@ namespace Cacao
         const InputAssemblyState& inputAssembly)
     {
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
-        inputAssemblyInfo.topology = Converter::Convert(inputAssembly.Topology);
+        inputAssemblyInfo.topology = VKConverter::Convert(inputAssembly.Topology);
         inputAssemblyInfo.primitiveRestartEnable = inputAssembly.PrimitiveRestartEnable;
         return inputAssemblyInfo;
     }
@@ -66,9 +66,9 @@ namespace Cacao
         vk::PipelineRasterizationStateCreateInfo rasterizerInfo = {};
         rasterizerInfo.depthClampEnable = rasterizer.DepthClampEnable;
         rasterizerInfo.rasterizerDiscardEnable = rasterizer.RasterizerDiscardEnable;
-        rasterizerInfo.polygonMode = Converter::Convert(rasterizer.PolygonMode);
-        rasterizerInfo.cullMode = Converter::Convert(rasterizer.CullMode);
-        rasterizerInfo.frontFace = Converter::Convert(rasterizer.FrontFace);
+        rasterizerInfo.polygonMode = VKConverter::Convert(rasterizer.PolygonMode);
+        rasterizerInfo.cullMode = VKConverter::Convert(rasterizer.CullMode);
+        rasterizerInfo.frontFace = VKConverter::Convert(rasterizer.FrontFace);
         rasterizerInfo.depthBiasEnable = rasterizer.DepthBiasEnable;
         rasterizerInfo.depthBiasConstantFactor = rasterizer.DepthBiasConstantFactor;
         rasterizerInfo.depthBiasClamp = rasterizer.DepthBiasClamp;
@@ -81,22 +81,22 @@ namespace Cacao
     {
         vk::PipelineColorBlendAttachmentState vkAttachment = {};
         vkAttachment.blendEnable = attachment.BlendEnable;
-        vkAttachment.srcColorBlendFactor = Converter::Convert(attachment.SrcColorBlendFactor);
-        vkAttachment.dstColorBlendFactor = Converter::Convert(attachment.DstColorBlendFactor);
-        vkAttachment.colorBlendOp = Converter::Convert(attachment.ColorBlendOp);
-        vkAttachment.srcAlphaBlendFactor = Converter::Convert(attachment.SrcAlphaBlendFactor);
-        vkAttachment.dstAlphaBlendFactor = Converter::Convert(attachment.DstAlphaBlendFactor);
-        vkAttachment.alphaBlendOp = Converter::Convert(attachment.AlphaBlendOp);
-        vkAttachment.colorWriteMask = Converter::Convert(attachment.ColorWriteMask);
+        vkAttachment.srcColorBlendFactor = VKConverter::Convert(attachment.SrcColorBlendFactor);
+        vkAttachment.dstColorBlendFactor = VKConverter::Convert(attachment.DstColorBlendFactor);
+        vkAttachment.colorBlendOp = VKConverter::Convert(attachment.ColorBlendOp);
+        vkAttachment.srcAlphaBlendFactor = VKConverter::Convert(attachment.SrcAlphaBlendFactor);
+        vkAttachment.dstAlphaBlendFactor = VKConverter::Convert(attachment.DstAlphaBlendFactor);
+        vkAttachment.alphaBlendOp = VKConverter::Convert(attachment.AlphaBlendOp);
+        vkAttachment.colorWriteMask = VKConverter::Convert(attachment.ColorWriteMask);
         return vkAttachment;
     }
     static vk::StencilOpState ConvertStencilOpState(const StencilOpState& stencilOpState)
     {
         vk::StencilOpState vkStencilOpState = {};
-        vkStencilOpState.failOp = Converter::Convert(stencilOpState.FailOp);
-        vkStencilOpState.passOp = Converter::Convert(stencilOpState.PassOp);
-        vkStencilOpState.depthFailOp = Converter::Convert(stencilOpState.DepthFailOp);
-        vkStencilOpState.compareOp = Converter::Convert(stencilOpState.CompareOp);
+        vkStencilOpState.failOp = VKConverter::Convert(stencilOpState.FailOp);
+        vkStencilOpState.passOp = VKConverter::Convert(stencilOpState.PassOp);
+        vkStencilOpState.depthFailOp = VKConverter::Convert(stencilOpState.DepthFailOp);
+        vkStencilOpState.compareOp = VKConverter::Convert(stencilOpState.CompareOp);
         vkStencilOpState.compareMask = stencilOpState.CompareMask;
         vkStencilOpState.writeMask = stencilOpState.WriteMask;
         vkStencilOpState.reference = stencilOpState.Reference;
@@ -107,7 +107,7 @@ namespace Cacao
         vk::PipelineDepthStencilStateCreateInfo depthStencilInfo = {};
         depthStencilInfo.depthTestEnable = depthStencil.DepthTestEnable;
         depthStencilInfo.depthWriteEnable = depthStencil.DepthWriteEnable;
-        depthStencilInfo.depthCompareOp = Converter::Convert(depthStencil.DepthCompareOp);
+        depthStencilInfo.depthCompareOp = VKConverter::Convert(depthStencil.DepthCompareOp);
         depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
         depthStencilInfo.stencilTestEnable = depthStencil.StencilTestEnable;
         depthStencilInfo.front = ConvertStencilOpState(depthStencil.Front);
@@ -121,7 +121,7 @@ namespace Cacao
         std::vector<vk::SampleMask>& outSampleMask)
     {
         vk::PipelineMultisampleStateCreateInfo multisampleInfo = {};
-        multisampleInfo.rasterizationSamples = Converter::ConvertSampleCount(multisample.RasterizationSamples);
+        multisampleInfo.rasterizationSamples = VKConverter::ConvertSampleCount(multisample.RasterizationSamples);
         multisampleInfo.sampleShadingEnable = multisample.SampleShadingEnable;
         multisampleInfo.minSampleShading = multisample.MinSampleShading;
         multisampleInfo.alphaToCoverageEnable = multisample.AlphaToCoverageEnable;
@@ -152,7 +152,7 @@ namespace Cacao
         }
         vk::PipelineColorBlendStateCreateInfo colorBlendInfo = {};
         colorBlendInfo.logicOpEnable = colorBlend.LogicOpEnable;
-        colorBlendInfo.logicOp = Converter::Convert(colorBlend.LogicOp);
+        colorBlendInfo.logicOp = VKConverter::Convert(colorBlend.LogicOp);
         colorBlendInfo.attachmentCount = static_cast<uint32_t>(outAttachments.size());
         colorBlendInfo.pAttachments = outAttachments.data();
         colorBlendInfo.blendConstants[0] = colorBlend.BlendConstants[0];
@@ -166,7 +166,7 @@ namespace Cacao
         std::vector<vk::Format> vkFormats(formats.size());
         for (size_t i = 0; i < formats.size(); i++)
         {
-            vkFormats[i] = Converter::Convert(formats[i]);
+            vkFormats[i] = VKConverter::Convert(formats[i]);
         }
         return vkFormats;
     }
@@ -249,7 +249,7 @@ namespace Cacao
         data.resize(dataSize);
         return data;
     }
-    void VKPipelineCache::Merge(std::span<const Ref<CacaoPipelineCache>> srcCaches)
+    void VKPipelineCache::Merge(std::span<const Ref<PipelineCache>> srcCaches)
     {
         if (!m_pipelineCache || !m_device)
         {
@@ -365,7 +365,7 @@ namespace Cacao
         pipelineInfo.layout = vkLayout->GetHandle();
         m_colorAttachmentFormats = ConvertColorAttachmentFormats(createInfo.ColorAttachmentFormats);
         vk::Format depthStencilVkFormat = (createInfo.DepthStencilFormat != Format::UNDEFINED)
-                                              ? Converter::Convert(createInfo.DepthStencilFormat)
+                                              ? VKConverter::Convert(createInfo.DepthStencilFormat)
                                               : vk::Format::eUndefined;
         vk::PipelineRenderingCreateInfo renderingInfo = ConvertPipelineRenderingCreateInfo(
             m_colorAttachmentFormats,

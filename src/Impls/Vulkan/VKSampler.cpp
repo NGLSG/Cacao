@@ -1,5 +1,5 @@
 #include "Impls/Vulkan/VKSampler.h"
-#include "Impls/Vulkan/VKConvert.h"
+#include "Impls/Vulkan/VKCommon.h"
 #include "Impls/Vulkan/VKDevice.h"
 namespace Cacao
 {
@@ -11,20 +11,20 @@ namespace Cacao
         }
         m_device = std::static_pointer_cast<VKDevice>(device);
         vk::SamplerCreateInfo samplerInfo{};
-        samplerInfo.setAddressModeU(Converter::Convert(createInfo.AddressModeU))
-                   .setAddressModeV(Converter::Convert(createInfo.AddressModeV))
-                   .setAddressModeW(Converter::Convert(createInfo.AddressModeW))
-                   .setMagFilter(Converter::Convert(createInfo.MagFilter))
-                   .setMinFilter(Converter::Convert(createInfo.MinFilter))
-                   .setMipmapMode(Converter::Convert(createInfo.MipmapMode))
+        samplerInfo.setAddressModeU(VKConverter::Convert(createInfo.AddressModeU))
+                   .setAddressModeV(VKConverter::Convert(createInfo.AddressModeV))
+                   .setAddressModeW(VKConverter::Convert(createInfo.AddressModeW))
+                   .setMagFilter(VKConverter::Convert(createInfo.MagFilter))
+                   .setMinFilter(VKConverter::Convert(createInfo.MinFilter))
+                   .setMipmapMode(VKConverter::Convert(createInfo.MipmapMode))
                    .setMipLodBias(createInfo.MipLodBias)
                    .setAnisotropyEnable(createInfo.AnisotropyEnable)
                    .setMaxAnisotropy(createInfo.MaxAnisotropy)
                    .setCompareEnable(createInfo.CompareEnable)
-                   .setCompareOp(Converter::Convert(createInfo.CompareOp))
+                   .setCompareOp(VKConverter::Convert(createInfo.CompareOp))
                    .setMinLod(createInfo.MinLod)
                    .setMaxLod(createInfo.MaxLod)
-                   .setBorderColor(Converter::Convert(createInfo.BorderColor))
+                   .setBorderColor(VKConverter::Convert(createInfo.BorderColor))
                    .setUnnormalizedCoordinates(VK_FALSE);
         m_sampler = m_device->GetHandle().createSampler(samplerInfo);
         if (!m_sampler)

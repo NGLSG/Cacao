@@ -12,7 +12,7 @@ namespace Cacao
     class ComputePipeline;
     struct GraphicsPipelineCreateInfo;
     class GraphicsPipeline;
-    class CacaoPipelineCache;
+    class PipelineCache;
     struct PipelineLayoutCreateInfo;
     class PipelineLayout;
     struct DescriptorPoolCreateInfo;
@@ -98,7 +98,7 @@ namespace Cacao
         virtual Ref<ShaderModule> CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info) =0;
         virtual Ref<PipelineLayout> CreatePipelineLayout(
             const PipelineLayoutCreateInfo& info) = 0;
-        virtual Ref<CacaoPipelineCache> CreatePipelineCache(
+        virtual Ref<PipelineCache> CreatePipelineCache(
             std::span<const uint8_t> initialData = {}) = 0;
         virtual Ref<GraphicsPipeline> CreateGraphicsPipeline(
             const GraphicsPipelineCreateInfo& info) = 0;

@@ -90,7 +90,7 @@ namespace Cacao
     struct TextureViewDesc
     {
         TextureType ViewType = TextureType::Texture2D; 
-        Format FormatOverride = Format::UNDEFINED; 
+        Format FormatOverride = Format::UNDEFINED;
         uint32_t BaseMipLevel = 0;
         uint32_t MipLevelCount = 1;
         uint32_t BaseArrayLayer = 0;

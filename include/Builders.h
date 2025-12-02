@@ -221,7 +221,7 @@ public:
     }
     GraphicsPipelineBuilder& SetDepthStencilFormat(Format format) { m_info.DepthStencilFormat = format; return *this; }
     GraphicsPipelineBuilder& SetLayout(const Ref<PipelineLayout>& layout) { m_info.Layout = layout; return *this; }
-    GraphicsPipelineBuilder& SetCache(const Ref<CacaoPipelineCache>& cache) { m_info.Cache = cache; return *this; }
+    GraphicsPipelineBuilder& SetCache(const Ref<PipelineCache>& cache) { m_info.Cache = cache; return *this; }
     const GraphicsPipelineCreateInfo& Build() const { return m_info; }
     operator const GraphicsPipelineCreateInfo&() const { return m_info; }
 };
@@ -231,7 +231,7 @@ class ComputePipelineBuilder
 public:
     ComputePipelineBuilder& SetShader(const Ref<ShaderModule>& shader) { m_info.ComputeShader = shader; return *this; }
     ComputePipelineBuilder& SetLayout(const Ref<PipelineLayout>& layout) { m_info.Layout = layout; return *this; }
-    ComputePipelineBuilder& SetCache(const Ref<CacaoPipelineCache>& cache) { m_info.Cache = cache; return *this; }
+    ComputePipelineBuilder& SetCache(const Ref<PipelineCache>& cache) { m_info.Cache = cache; return *this; }
     const ComputePipelineCreateInfo& Build() const { return m_info; }
     operator const ComputePipelineCreateInfo&() const { return m_info; }
 };
