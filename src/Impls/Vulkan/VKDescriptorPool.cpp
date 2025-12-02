@@ -4,7 +4,7 @@
 #include "Impls/Vulkan/VKDevice.h"
 namespace Cacao
 {
-    VKDescriptorPool::VKDescriptorPool(const Ref<CacaoDevice>& device, const DescriptorPoolCreateInfo& createInfo)
+    VKDescriptorPool::VKDescriptorPool(const Ref<Device>& device, const DescriptorPoolCreateInfo& createInfo)
     {
         if (!device)
         {
@@ -67,7 +67,7 @@ namespace Cacao
             throw std::runtime_error("Failed to create Vulkan descriptor pool");
         }
     }
-    Ref<VKDescriptorPool> VKDescriptorPool::Create(const Ref<CacaoDevice>& device,
+    Ref<VKDescriptorPool> VKDescriptorPool::Create(const Ref<Device>& device,
                                                    const DescriptorPoolCreateInfo& createInfo)
     {
         return CreateRef<VKDescriptorPool>(device, createInfo);
@@ -76,7 +76,7 @@ namespace Cacao
     {
         m_device->GetHandle().resetDescriptorPool(m_descriptorPool);
     }
-    Ref<CacaoDescriptorSet> VKDescriptorPool::AllocateDescriptorSet(const Ref<CacaoDescriptorSetLayout>& layout)
+    Ref<DescriptorSet> VKDescriptorPool::AllocateDescriptorSet(const Ref<DescriptorSetLayout>& layout)
     {
         if (!layout)
         {

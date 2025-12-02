@@ -1,4 +1,5 @@
 #include "Impls/Vulkan/VKDescriptorSet.h"
+#include "Impls/Vulkan/VKConvert.h"
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKDescriptorPool.h"
 #include "Impls/Vulkan/VKDescriptorSetLayout.h"
@@ -7,85 +8,6 @@
 #include "Impls/Vulkan/VKSampler.h"
 namespace Cacao
 {
-    vk::ImageLayout Convert(ImageLayout layout)
-    {
-        switch (layout)
-        {
-        case ImageLayout::Undefined:
-            return vk::ImageLayout::eUndefined;
-        case ImageLayout::General:
-            return vk::ImageLayout::eGeneral;
-        case ImageLayout::ColorAttachment:
-            return vk::ImageLayout::eColorAttachmentOptimal;
-        case ImageLayout::DepthStencilAttachment:
-            return vk::ImageLayout::eDepthStencilAttachmentOptimal;
-        case ImageLayout::ShaderReadOnly:
-            return vk::ImageLayout::eShaderReadOnlyOptimal;
-        case ImageLayout::TransferSrc:
-            return vk::ImageLayout::eTransferSrcOptimal;
-        case ImageLayout::TransferDst:
-            return vk::ImageLayout::eTransferDstOptimal;
-        case ImageLayout::Present:
-            return vk::ImageLayout::ePresentSrcKHR;
-        case ImageLayout::Preinitialized:
-            return vk::ImageLayout::ePreinitialized;
-        default:
-            return vk::ImageLayout::eUndefined;
-        }
-    }
-    vk::DescriptorType GetBufferUsage(const BufferUsageFlags& usage)
-    {
-        vk::DescriptorType usageFlags;
-        if (usage & BufferUsageFlags::VertexBuffer)
-        {
-            usageFlags = vk::DescriptorType::eStorageBuffer;
-        }
-        else if (usage & BufferUsageFlags::IndexBuffer)
-        {
-            usageFlags = vk::DescriptorType::eStorageBuffer;
-        }
-        else if (usage & BufferUsageFlags::UniformBuffer)
-        {
-            usageFlags = vk::DescriptorType::eUniformBuffer;
-        }
-        else if (usage & BufferUsageFlags::StorageBuffer)
-        {
-            usageFlags = vk::DescriptorType::eStorageBuffer;
-        }
-        else
-        {
-            throw std::runtime_error("Unsupported BufferUsageFlags in GetBufferUsage");
-        }
-        return usageFlags;
-    }
-    vk::DescriptorType Convert(DescriptorType type)
-    {
-        switch (type)
-        {
-        case DescriptorType::Sampler:
-            return vk::DescriptorType::eSampler;
-        case DescriptorType::CombinedImageSampler:
-            return vk::DescriptorType::eCombinedImageSampler;
-        case DescriptorType::SampledImage:
-            return vk::DescriptorType::eSampledImage;
-        case DescriptorType::StorageImage:
-            return vk::DescriptorType::eStorageImage;
-        case DescriptorType::UniformBuffer:
-            return vk::DescriptorType::eUniformBuffer;
-        case DescriptorType::StorageBuffer:
-            return vk::DescriptorType::eStorageBuffer;
-        case DescriptorType::UniformBufferDynamic:
-            return vk::DescriptorType::eUniformBufferDynamic;
-        case DescriptorType::StorageBufferDynamic:
-            return vk::DescriptorType::eStorageBufferDynamic;
-        case DescriptorType::InputAttachment:
-            return vk::DescriptorType::eInputAttachment;
-        case DescriptorType::AccelerationStructure:
-            return vk::DescriptorType::eAccelerationStructureKHR;
-        default:
-            return vk::DescriptorType::eSampler;
-        }
-    }
     vk::DescriptorBufferInfo VKDescriptorSet::ConvertToVkBufferInfo(const BufferWriteInfo& info)
     {
         vk::DescriptorBufferInfo vkInfo = {};
@@ -98,22 +20,21 @@ namespace Cacao
     vk::DescriptorImageInfo VKDescriptorSet::ConvertToVkImageInfo(const TextureWriteInfo& info)
     {
         vk::DescriptorImageInfo vkInfo = {};
-        if (!info.TextureView)
+        if (info.TextureView)
         {
-            throw std::runtime_error("TextureWriteInfo has null Texture");
+            auto vkView = std::static_pointer_cast<VKTextureView>(info.TextureView);
+            vkInfo.imageView = vkView->GetHandle();
+            vkInfo.imageLayout = Converter::Convert(info.Layout);
         }
         if (info.Sampler)
         {
             auto vkSampler = std::static_pointer_cast<VKSampler>(info.Sampler);
             vkInfo.sampler = vkSampler->GetHandle();
         }
-        auto vkView = std::static_pointer_cast<VKTextureView>(info.TextureView);
-        vkInfo.imageView = vkView->GetHandle();
-        vkInfo.imageLayout = Convert(info.Layout);
         return vkInfo;
     }
-    VKDescriptorSet::VKDescriptorSet(const Ref<CacaoDevice>& device, const Ref<CacaoDescriptorPool>& parent,
-                                     const Ref<CacaoDescriptorSetLayout>& layout,
+    VKDescriptorSet::VKDescriptorSet(const Ref<Device>& device, const Ref<DescriptorPool>& parent,
+                                     const Ref<DescriptorSetLayout>& layout,
                                      const vk::DescriptorSet& descriptorSet)
     {
         if (!device)
@@ -137,8 +58,8 @@ namespace Cacao
             throw std::runtime_error("VKDescriptorSet created with invalid vk::DescriptorSet");
         }
     }
-    Ref<VKDescriptorSet> VKDescriptorSet::Create(const Ref<CacaoDevice>& device, const Ref<CacaoDescriptorPool>& parent,
-                                                 const Ref<CacaoDescriptorSetLayout>& layout,
+    Ref<VKDescriptorSet> VKDescriptorSet::Create(const Ref<Device>& device, const Ref<DescriptorPool>& parent,
+                                                 const Ref<DescriptorSetLayout>& layout,
                                                  const vk::DescriptorSet& descriptorSet)
     {
         return CreateRef<VKDescriptorSet>(device, parent, layout, descriptorSet);
@@ -170,7 +91,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = info.Binding;
         vkWriteDescriptorSet.dstArrayElement = info.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Convert(info.Type);
+        vkWriteDescriptorSet.descriptorType = Converter::Convert(info.Type);
         vkWriteDescriptorSet.descriptorCount = 1;
         vkWriteDescriptorSet.pBufferInfo = pBufferInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -183,7 +104,26 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = info.Binding;
         vkWriteDescriptorSet.dstArrayElement = info.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Convert(info.Type);
+        vkWriteDescriptorSet.descriptorType = Converter::Convert(info.Type);
+        vkWriteDescriptorSet.descriptorCount = 1;
+        vkWriteDescriptorSet.pImageInfo = pImageInfo;
+        m_pendingWrites.push_back(vkWriteDescriptorSet);
+    }
+    void VKDescriptorSet::WriteSampler(const SamplerWriteInfo& info)
+    {
+        vk::DescriptorImageInfo vkInfo = {};
+        if (info.Sampler)
+        {
+            auto vkSampler = std::static_pointer_cast<VKSampler>(info.Sampler);
+            vkInfo.sampler = vkSampler->GetHandle();
+        }
+        m_pendingImageInfos.push_back(vkInfo);
+        vk::DescriptorImageInfo* pImageInfo = &m_pendingImageInfos.back();
+        vk::WriteDescriptorSet vkWriteDescriptorSet = {};
+        vkWriteDescriptorSet.dstSet = m_descriptorSet;
+        vkWriteDescriptorSet.dstBinding = info.Binding;
+        vkWriteDescriptorSet.dstArrayElement = info.ArrayElement;
+        vkWriteDescriptorSet.descriptorType = vk::DescriptorType::eSampler;
         vkWriteDescriptorSet.descriptorCount = 1;
         vkWriteDescriptorSet.pImageInfo = pImageInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -202,7 +142,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = info.Binding;
         vkWriteDescriptorSet.dstArrayElement = 0;
-        vkWriteDescriptorSet.descriptorType = Convert(info.Type);
+        vkWriteDescriptorSet.descriptorType = Converter::Convert(info.Type);
         vkWriteDescriptorSet.descriptorCount = 1;
         vkWriteDescriptorSet.pNext = pASInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -229,7 +169,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = infos.Binding;
         vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorType = Converter::Convert(infos.Type);
         vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pBufferInfoArray->size());
         vkWriteDescriptorSet.pBufferInfo = pBufferInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -256,7 +196,32 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = infos.Binding;
         vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorType = Converter::Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pImageInfoArray->size());
+        vkWriteDescriptorSet.pImageInfo = pImageInfoArray->data();
+        m_pendingWrites.push_back(vkWriteDescriptorSet);
+    }
+    void VKDescriptorSet::WriteSamplers(const SamplerWriteInfos& infos)
+    {
+        std::vector<vk::DescriptorImageInfo> vkImageInfos;
+        vkImageInfos.resize(infos.Samplers.size());
+        for (size_t i = 0; i < infos.Samplers.size(); ++i)
+        {
+            vk::DescriptorImageInfo vkInfo = {};
+            if (infos.Samplers[i])
+            {
+                auto vkSampler = std::static_pointer_cast<VKSampler>(infos.Samplers[i]);
+                vkInfo.sampler = vkSampler->GetHandle();
+            }
+            vkImageInfos[i] = vkInfo;
+        }
+        m_pendingImageInfoArrays.push_back(std::move(vkImageInfos));
+        std::vector<vk::DescriptorImageInfo>* pImageInfoArray = &m_pendingImageInfoArrays.back();
+        vk::WriteDescriptorSet vkWriteDescriptorSet = {};
+        vkWriteDescriptorSet.dstSet = m_descriptorSet;
+        vkWriteDescriptorSet.dstBinding = infos.Binding;
+        vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
+        vkWriteDescriptorSet.descriptorType = vk::DescriptorType::eSampler;
         vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pImageInfoArray->size());
         vkWriteDescriptorSet.pImageInfo = pImageInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
@@ -281,7 +246,7 @@ namespace Cacao
         vkWriteDescriptorSet.dstSet = m_descriptorSet;
         vkWriteDescriptorSet.dstBinding = infos.Binding;
         vkWriteDescriptorSet.dstArrayElement = infos.ArrayElement;
-        vkWriteDescriptorSet.descriptorType = Convert(infos.Type);
+        vkWriteDescriptorSet.descriptorType = Converter::Convert(infos.Type);
         vkWriteDescriptorSet.descriptorCount = static_cast<uint32_t>(pASHandleArray->size());
         vkWriteDescriptorSet.pNext = pASInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);

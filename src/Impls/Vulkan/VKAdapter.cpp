@@ -1,5 +1,5 @@
 #include <Impls/Vulkan/VKAdapter.h>
-#include "CacaoInstance.h"
+#include "Instance.h"
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKInstance.h"
 namespace Cacao
@@ -21,7 +21,7 @@ namespace Cacao
     {
         return m_physicalDevice;
     }
-    VKAdapter::VKAdapter(const Ref<CacaoInstance>& inst, const vk::PhysicalDevice& physicalDevice) : m_physicalDevice(
+    VKAdapter::VKAdapter(const Ref<Instance>& inst, const vk::PhysicalDevice& physicalDevice) : m_physicalDevice(
         physicalDevice)
     {
         if (!m_physicalDevice)
@@ -50,7 +50,7 @@ namespace Cacao
             m_adapterType = AdapterType::Unknown;
         }
     }
-    Ref<VKAdapter> VKAdapter::Create(const Ref<CacaoInstance>& inst, const vk::PhysicalDevice& physicalDevice)
+    Ref<VKAdapter> VKAdapter::Create(const Ref<Instance>& inst, const vk::PhysicalDevice& physicalDevice)
     {
         return CreateRef<VKAdapter>(inst, physicalDevice);
     }
@@ -138,7 +138,7 @@ namespace Cacao
             return false;
         }
     }
-    std::shared_ptr<CacaoDevice> VKAdapter::CreateDevice(const CacaoDeviceCreateInfo& info)
+    std::shared_ptr<Device> VKAdapter::CreateDevice(const DeviceCreateInfo& info)
     {
         return VKDevice::Create(shared_from_this(), info);
     }

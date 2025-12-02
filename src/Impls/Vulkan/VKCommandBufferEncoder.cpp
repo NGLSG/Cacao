@@ -1,6 +1,7 @@
 #include "Impls/Vulkan/VKCommandBufferEncoder.h"
-#include "CacaoDevice.h"
-#include "CacaoTexture.h"
+#include "Impls/Vulkan/VKConvert.h"
+#include "Device.h"
+#include "Texture.h"
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKPipeline.h"
@@ -20,225 +21,26 @@ namespace Cacao
         {
             return format == Format::D24S8;
         }
-        vk::PipelineStageFlags TranslateStageFlags(PipelineStage flags)
-        {
-            vk::PipelineStageFlags vkFlags;
-            if (flags == PipelineStage::None) return vk::PipelineStageFlagBits::eTopOfPipe;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::TopOfPipe))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eTopOfPipe;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::DrawIndirect))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eDrawIndirect;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexInput))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eVertexInput;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexShader))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eVertexShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::GeometryShader))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eGeometryShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::FragmentShader))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eFragmentShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::EarlyFragmentTests))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eEarlyFragmentTests;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::LateFragmentTests))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eLateFragmentTests;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ColorAttachmentOutput))
-                vkFlags
-                    |= vk::PipelineStageFlagBits::eColorAttachmentOutput;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ComputeShader))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eComputeShader;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Transfer))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eTransfer;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::BottomOfPipe))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eBottomOfPipe;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Host))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eHost;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllGraphics))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eAllGraphics;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllCommands))
-                vkFlags |=
-                    vk::PipelineStageFlagBits::eAllCommands;
-            return vkFlags;
-        }
-        vk::AccessFlags TranslateAccessFlags(AccessFlags flags)
-        {
-            vk::AccessFlags vkFlags;
-            if (flags == AccessFlags::None) return vkFlags;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndirectCommandRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eIndirectCommandRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndexRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eIndexRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::VertexAttributeRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eVertexAttributeRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::UniformRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eUniformRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::InputAttachmentRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eInputAttachmentRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eShaderRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderWrite))
-                vkFlags |=
-                    vk::AccessFlagBits::eShaderWrite;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ColorAttachmentRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eColorAttachmentRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ColorAttachmentWrite))
-                vkFlags |=
-                    vk::AccessFlagBits::eColorAttachmentWrite;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::DepthStencilAttachmentRead))
-                vkFlags
-                    |= vk::AccessFlagBits::eDepthStencilAttachmentRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::DepthStencilAttachmentWrite))
-                vkFlags
-                    |= vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eTransferRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferWrite))
-                vkFlags |=
-                    vk::AccessFlagBits::eTransferWrite;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::HostRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eHostRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::HostWrite))
-                vkFlags |=
-                    vk::AccessFlagBits::eHostWrite;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::MemoryRead))
-                vkFlags |=
-                    vk::AccessFlagBits::eMemoryRead;
-            if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::MemoryWrite))
-                vkFlags |=
-                    vk::AccessFlagBits::eMemoryWrite;
-            return vkFlags;
-        }
-        vk::ImageLayout TranslateImageLayout(ImageLayout layout)
-        {
-            switch (layout)
-            {
-            case ImageLayout::Undefined: return vk::ImageLayout::eUndefined;
-            case ImageLayout::General: return vk::ImageLayout::eGeneral;
-            case ImageLayout::ColorAttachment: return vk::ImageLayout::eColorAttachmentOptimal;
-            case ImageLayout::DepthStencilAttachment: return vk::ImageLayout::eDepthStencilAttachmentOptimal;
-            case ImageLayout::DepthStencilReadOnly: return vk::ImageLayout::eDepthStencilReadOnlyOptimal;
-            case ImageLayout::ShaderReadOnly: return vk::ImageLayout::eShaderReadOnlyOptimal;
-            case ImageLayout::TransferSrc: return vk::ImageLayout::eTransferSrcOptimal;
-            case ImageLayout::TransferDst: return vk::ImageLayout::eTransferDstOptimal;
-            case ImageLayout::Present: return vk::ImageLayout::ePresentSrcKHR;
-            case ImageLayout::Preinitialized: return vk::ImageLayout::ePreinitialized;
-            default: return vk::ImageLayout::eUndefined;
-            }
-        }
-        vk::ImageAspectFlags Convert(ImageAspectFlags iflags)
-        {
-            vk::ImageAspectFlags flags;
-            if (iflags == ImageAspectFlags::None) return flags;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Color))
-                flags |= vk::ImageAspectFlagBits::eColor;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Depth))
-                flags |= vk::ImageAspectFlagBits::eDepth;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Stencil))
-                flags |= vk::ImageAspectFlagBits::eStencil;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Metadata))
-                flags |= vk::ImageAspectFlagBits::eMetadata;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Plane0))
-                flags |= vk::ImageAspectFlagBits::ePlane0;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Plane1))
-                flags |= vk::ImageAspectFlagBits::ePlane1;
-            if (static_cast<uint32_t>(iflags) & static_cast<uint32_t>(ImageAspectFlags::Plane2))
-                flags |= vk::ImageAspectFlagBits::ePlane2;
-            return flags;
-        }
     }
     vk::CommandBufferInheritanceRenderingInfo VKCommandBufferEncoder::ConvertRenderingInfo(const RenderingInfo& info)
     {
         vk::CommandBufferInheritanceRenderingInfo vkRenderingInfo{};
         vkRenderingInfo.colorAttachmentCount = static_cast<uint32_t>(info.ColorAttachments.size());
-        std::vector<vk::Format> vkFormats(info.ColorAttachments.size(), vk::Format::eUndefined);
+        m_inheritanceColorFormats.resize(info.ColorAttachments.size(), vk::Format::eUndefined);
         for (size_t i = 0; i < info.ColorAttachments.size(); i++)
         {
             if (!info.ColorAttachments[i].Texture)
                 continue;
-            switch (info.ColorAttachments[i].Texture->GetFormat())
-            {
-            case Format::RGBA8_UNORM:
-                vkFormats[i] = vk::Format::eR8G8B8A8Unorm;
-                break;
-            case Format::BGRA8_UNORM:
-                vkFormats[i] = vk::Format::eB8G8R8A8Unorm;
-                break;
-            case Format::RGBA8_SRGB:
-                vkFormats[i] = vk::Format::eR8G8B8A8Srgb;
-                break;
-            case Format::BGRA8_SRGB:
-                vkFormats[i] = vk::Format::eB8G8R8A8Srgb;
-                break;
-            case Format::RGBA16_FLOAT:
-                vkFormats[i] = vk::Format::eR16G16B16A16Sfloat;
-                break;
-            case Format::RGB10A2_UNORM:
-                vkFormats[i] = vk::Format::eA2B10G10R10UnormPack32;
-                break;
-            case Format::RGBA32_FLOAT:
-                vkFormats[i] = vk::Format::eR32G32B32A32Sfloat;
-                break;
-            case Format::R8_UNORM:
-                vkFormats[i] = vk::Format::eR8Unorm;
-                break;
-            case Format::R16_FLOAT:
-                vkFormats[i] = vk::Format::eR16Sfloat;
-                break;
-            default:
-                vkFormats[i] = vk::Format::eUndefined;
-                break;
-            }
+            m_inheritanceColorFormats[i] = Converter::Convert(info.ColorAttachments[i].Texture->GetFormat());
         }
-        vkRenderingInfo.pColorAttachmentFormats = vkFormats.data();
+        vkRenderingInfo.pColorAttachmentFormats = m_inheritanceColorFormats.data();
         if (info.DepthAttachment && info.DepthAttachment->Texture)
         {
-            switch (info.DepthAttachment->Texture->GetFormat())
-            {
-            case Format::D32F:
-                vkRenderingInfo.depthAttachmentFormat = vk::Format::eD32Sfloat;
-                break;
-            case Format::D24S8:
-                vkRenderingInfo.depthAttachmentFormat = vk::Format::eD24UnormS8Uint;
-                break;
-            default:
-                vkRenderingInfo.depthAttachmentFormat = vk::Format::eUndefined;
-                break;
-            }
+            vkRenderingInfo.depthAttachmentFormat = Converter::Convert(info.DepthAttachment->Texture->GetFormat());
         }
         if (info.StencilAttachment && info.StencilAttachment->Texture)
         {
-            switch (info.StencilAttachment->Texture->GetFormat())
-            {
-            case Format::D32F:
-                vkRenderingInfo.stencilAttachmentFormat = vk::Format::eD32Sfloat;
-                break;
-            case Format::D24S8:
-                vkRenderingInfo.stencilAttachmentFormat = vk::Format::eD24UnormS8Uint;
-                break;
-            default:
-                vkRenderingInfo.stencilAttachmentFormat = vk::Format::eUndefined;
-                break;
-            }
+            vkRenderingInfo.stencilAttachmentFormat = Converter::Convert(info.StencilAttachment->Texture->GetFormat());
         }
         return vkRenderingInfo;
     }
@@ -370,12 +172,12 @@ namespace Cacao
         }
         return vkRenderingInfo;
     }
-    Ref<VKCommandBufferEncoder> VKCommandBufferEncoder::Create(const Ref<CacaoDevice>& device,
+    Ref<VKCommandBufferEncoder> VKCommandBufferEncoder::Create(const Ref<Device>& device,
                                                                vk::CommandBuffer commandBuffer, CommandBufferType type)
     {
         return CreateRef<VKCommandBufferEncoder>(device, commandBuffer, type);
     }
-    VKCommandBufferEncoder::VKCommandBufferEncoder(const Ref<CacaoDevice>& device, vk::CommandBuffer commandBuffer,
+    VKCommandBufferEncoder::VKCommandBufferEncoder(const Ref<Device>& device, vk::CommandBuffer commandBuffer,
                                                    CommandBufferType type) :
         m_commandBuffer(commandBuffer), m_type(type)
     {
@@ -429,18 +231,18 @@ namespace Cacao
     {
         m_commandBuffer.endRendering();
     }
-    void VKCommandBufferEncoder::BindGraphicsPipeline(const Ref<CacaoGraphicsPipeline>& pipeline)
+    void VKCommandBufferEncoder::BindGraphicsPipeline(const Ref<GraphicsPipeline>& pipeline)
     {
         m_commandBuffer.bindPipeline(
             vk::PipelineBindPoint::eGraphics,
-            std::dynamic_pointer_cast<VKGraphicsPipeline>(pipeline)->GetHandle()
+            static_cast<VKGraphicsPipeline*>(pipeline.get())->GetHandle()
         );
     }
-    void VKCommandBufferEncoder::BindComputePipeline(const Ref<CacaoComputePipeline>& pipeline)
+    void VKCommandBufferEncoder::BindComputePipeline(const Ref<ComputePipeline>& pipeline)
     {
         m_commandBuffer.bindPipeline(
             vk::PipelineBindPoint::eCompute,
-            std::dynamic_pointer_cast<VKComputePipeline>(pipeline)->GetHandle()
+            static_cast<VKComputePipeline*>(pipeline.get())->GetHandle()
         );
     }
     void VKCommandBufferEncoder::SetViewport(const Viewport& viewport)
@@ -461,83 +263,55 @@ namespace Cacao
                                        {scissor.Width, scissor.Height}
                                    ));
     }
-    void VKCommandBufferEncoder::BindVertexBuffer(uint32_t binding, const Ref<CacaoBuffer>& buffer,
+    void VKCommandBufferEncoder::BindVertexBuffer(uint32_t binding, const Ref<Buffer>& buffer,
                                                   uint64_t offset)
     {
         m_commandBuffer.bindVertexBuffers(binding,
-                                          std::dynamic_pointer_cast<VKBuffer>(buffer)->GetHandle(),
+                                          static_cast<VKBuffer*>(buffer.get())->GetHandle(),
                                           offset);
     }
-    void VKCommandBufferEncoder::BindIndexBuffer(const Ref<CacaoBuffer>& buffer, uint64_t offset,
+    void VKCommandBufferEncoder::BindIndexBuffer(const Ref<Buffer>& buffer, uint64_t offset,
                                                  IndexType indexType)
     {
-        vk::IndexType vkIndexType;
-        switch (indexType)
-        {
-        case IndexType::UInt16:
-            vkIndexType = vk::IndexType::eUint16;
-            break;
-        case IndexType::UInt32:
-            vkIndexType = vk::IndexType::eUint32;
-            break;
-        default:
-            throw std::runtime_error("Unsupported index type in BindIndexBuffer");
-        }
         m_commandBuffer.bindIndexBuffer(
-            std::dynamic_pointer_cast<VKBuffer>(buffer)->GetHandle(),
+            static_cast<VKBuffer*>(buffer.get())->GetHandle(),
             offset,
-            vkIndexType
+            Converter::Convert(indexType)
         );
     }
-    std::vector<vk::DescriptorSet> ConvertDescriptorSets(
-        const std::vector<Ref<CacaoDescriptorSet>>& descriptorSets)
-    {
-        std::vector<vk::DescriptorSet> vkDescriptorSets;
-        vkDescriptorSets.reserve(descriptorSets.size());
-        for (const auto& descriptorSet : descriptorSets)
-        {
-            vkDescriptorSets.push_back(
-                std::static_pointer_cast<VKDescriptorSet>(descriptorSet)->GetHandle());
-        }
-        return vkDescriptorSets;
-    }
-    void VKCommandBufferEncoder::BindDescriptorSets(const Ref<CacaoGraphicsPipeline>& pipeline,
+    void VKCommandBufferEncoder::BindDescriptorSets(const Ref<GraphicsPipeline>& pipeline,
                                                     uint32_t firstSet,
-                                                    const std::vector<Ref<CacaoDescriptorSet>>&
+                                                    std::span<const Ref<DescriptorSet>>
                                                     descriptorSets)
     {
+        m_boundDescriptorSets.clear();
+        m_boundDescriptorSets.reserve(descriptorSets.size());
+        for (const auto& descriptorSet : descriptorSets)
+        {
+            m_boundDescriptorSets.push_back(
+                static_cast<VKDescriptorSet*>(descriptorSet.get())->GetHandle());
+        }
+        auto* vkPipeline = static_cast<VKGraphicsPipeline*>(pipeline.get());
+        auto* vkLayout = static_cast<VKPipelineLayout*>(vkPipeline->GetLayout().get());
         m_commandBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            std::static_pointer_cast<VKPipelineLayout>(
-                std::static_pointer_cast<VKGraphicsPipeline>(pipeline)->GetLayout())->GetHandle(),
+            vkLayout->GetHandle(),
             firstSet,
-            static_cast<uint32_t>(descriptorSets.size()),
-            ConvertDescriptorSets(descriptorSets).data(),
+            static_cast<uint32_t>(m_boundDescriptorSets.size()),
+            m_boundDescriptorSets.data(),
             0,
             nullptr
         );
     }
-    void VKCommandBufferEncoder::PushConstants(const Ref<CacaoGraphicsPipeline>& pipeline,
+    void VKCommandBufferEncoder::PushConstants(const Ref<GraphicsPipeline>& pipeline,
                                                ShaderStage stageFlags, uint32_t offset, uint32_t size,
                                                const void* data)
     {
-        vk::ShaderStageFlags vkStageFlags;
-        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Vertex))
-            vkStageFlags |= vk::ShaderStageFlagBits::eVertex;
-        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Fragment))
-            vkStageFlags |= vk::ShaderStageFlagBits::eFragment;
-        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Geometry))
-            vkStageFlags |= vk::ShaderStageFlagBits::eGeometry;
-        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::Compute))
-            vkStageFlags |= vk::ShaderStageFlagBits::eCompute;
-        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::TessellationControl))
-            vkStageFlags |= vk::ShaderStageFlagBits::eTessellationControl;
-        if (static_cast<uint32_t>(stageFlags) & static_cast<uint32_t>(ShaderStage::TessellationEvaluation))
-            vkStageFlags |= vk::ShaderStageFlagBits::eTessellationEvaluation;
+        auto* vkPipeline = static_cast<VKGraphicsPipeline*>(pipeline.get());
+        auto* vkLayout = static_cast<VKPipelineLayout*>(vkPipeline->GetLayout().get());
         m_commandBuffer.pushConstants(
-            std::static_pointer_cast<VKPipelineLayout>(
-                std::static_pointer_cast<VKGraphicsPipeline>(pipeline)->GetLayout())->GetHandle(),
-            vkStageFlags,
+            vkLayout->GetHandle(),
+            Converter::ConvertShaderStageFlags(stageFlags),
             offset,
             size,
             data
@@ -553,67 +327,408 @@ namespace Cacao
     {
         m_commandBuffer.drawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
-    void VKCommandBufferEncoder::PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
-                                                 const std::vector<MemoryBarrier>& globalBarriers,
-                                                 const std::vector<BufferBarrier>& bufferBarriers,
-                                                 const std::vector<TextureBarrier>& textureBarriers)
+    void VKCommandBufferEncoder::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
     {
-        vk::PipelineStageFlags vkSrcStage = TranslateStageFlags(srcStage);
-        vk::PipelineStageFlags vkDstStage = TranslateStageFlags(dstStage);
-        std::vector<vk::MemoryBarrier> vkGlobalBarriers;
-        std::vector<vk::BufferMemoryBarrier> vkBufferBarriers;
-        std::vector<vk::ImageMemoryBarrier> vkTextureBarriers;
-        vkGlobalBarriers.reserve(globalBarriers.size());
-        vkBufferBarriers.reserve(bufferBarriers.size());
-        vkTextureBarriers.reserve(textureBarriers.size());
-        for (const auto& barrier : globalBarriers)
+        m_commandBuffer.dispatch(groupCountX, groupCountY, groupCountZ);
+    }
+    void VKCommandBufferEncoder::BindComputeDescriptorSets(const Ref<ComputePipeline>& pipeline,
+                                                           uint32_t firstSet,
+                                                           std::span<const Ref<DescriptorSet>> descriptorSets)
+    {
+        m_boundDescriptorSets.clear();
+        m_boundDescriptorSets.reserve(descriptorSets.size());
+        for (const auto& descriptorSet : descriptorSets)
         {
-            vkGlobalBarriers.push_back(vk::MemoryBarrier()
-                                       .setSrcAccessMask(TranslateAccessFlags(barrier.SrcAccess))
-                                       .setDstAccessMask(TranslateAccessFlags(barrier.DstAccess))
-            );
+            m_boundDescriptorSets.push_back(
+                static_cast<VKDescriptorSet*>(descriptorSet.get())->GetHandle());
         }
-        for (const auto& barrier : bufferBarriers)
+        auto* vkPipeline = static_cast<VKComputePipeline*>(pipeline.get());
+        auto* vkLayout = static_cast<VKPipelineLayout*>(vkPipeline->GetLayout().get());
+        m_commandBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eCompute,
+            vkLayout->GetHandle(),
+            firstSet,
+            static_cast<uint32_t>(m_boundDescriptorSets.size()),
+            m_boundDescriptorSets.data(),
+            0,
+            nullptr
+        );
+    }
+    void VKCommandBufferEncoder::ComputePushConstants(const Ref<ComputePipeline>& pipeline,
+                                                      ShaderStage stageFlags, uint32_t offset, uint32_t size,
+                                                      const void* data)
+    {
+        auto* vkPipeline = static_cast<VKComputePipeline*>(pipeline.get());
+        auto* vkLayout = static_cast<VKPipelineLayout*>(vkPipeline->GetLayout().get());
+        m_commandBuffer.pushConstants(
+            vkLayout->GetHandle(),
+            Converter::ConvertShaderStageFlags(stageFlags),
+            offset,
+            size,
+            data
+        );
+    }
+    void VKCommandBufferEncoder::PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
+                                                 std::span<const MemoryBarrier> globalBarriers,
+                                                 std::span<const BufferBarrier> bufferBarriers,
+                                                 std::span<const TextureBarrier> textureBarriers)
+    {
+        const VkPipelineStageFlags vkSrcStage = FastConvert::PipelineStage(srcStage);
+        const VkPipelineStageFlags vkDstStage = FastConvert::PipelineStage(dstStage);
+        m_cachedMemoryBarriers.clear();
+        m_cachedBufferBarriers.clear();
+        m_cachedImageBarriers.clear();
+        if (!globalBarriers.empty())
         {
-            auto vkBuffer = std::static_pointer_cast<VKBuffer>(barrier.Buffer);
-            vkBufferBarriers.push_back(vk::BufferMemoryBarrier()
-                                       .setSrcAccessMask(TranslateAccessFlags(barrier.SrcAccess))
-                                       .setDstAccessMask(TranslateAccessFlags(barrier.DstAccess))
-                                       .setSrcQueueFamilyIndex(barrier.SrcQueueFamilyIndex)
-                                       .setDstQueueFamilyIndex(barrier.DstQueueFamilyIndex)
-                                       .setBuffer(vkBuffer->GetHandle())
-                                       .setOffset(barrier.Offset)
-                                       .setSize(barrier.Size)
-            );
+            m_cachedMemoryBarriers.resize(globalBarriers.size());
+            for (size_t i = 0; i < globalBarriers.size(); ++i)
+            {
+                m_cachedMemoryBarriers[i].srcAccessMask = static_cast<vk::AccessFlags>(
+                    FastConvert::AccessFlags(globalBarriers[i].SrcAccess));
+                m_cachedMemoryBarriers[i].dstAccessMask = static_cast<vk::AccessFlags>(
+                    FastConvert::AccessFlags(globalBarriers[i].DstAccess));
+            }
         }
-        for (const auto& barrier : textureBarriers)
+        if (!bufferBarriers.empty())
         {
-            auto vkTexture = std::static_pointer_cast<VKTexture>(barrier.Texture);
-            vk::ImageAspectFlags aspectMask = Convert(barrier.SubresourceRange.AspectMask);
-            vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
-                                                         .setAspectMask(aspectMask)
-                                                         .setBaseMipLevel(barrier.SubresourceRange.BaseMipLevel)
-                                                         .setLevelCount(barrier.SubresourceRange.LevelCount)
-                                                         .setBaseArrayLayer(barrier.SubresourceRange.BaseArrayLayer)
-                                                         .setLayerCount(barrier.SubresourceRange.LayerCount);
-            vkTextureBarriers.push_back(vk::ImageMemoryBarrier()
-                                        .setSrcAccessMask(TranslateAccessFlags(barrier.SrcAccess))
-                                        .setDstAccessMask(TranslateAccessFlags(barrier.DstAccess))
-                                        .setOldLayout(TranslateImageLayout(barrier.OldLayout))
-                                        .setNewLayout(TranslateImageLayout(barrier.NewLayout))
-                                        .setSrcQueueFamilyIndex(barrier.SrcQueueFamilyIndex)
-                                        .setDstQueueFamilyIndex(barrier.DstQueueFamilyIndex)
-                                        .setImage(vkTexture->GetVulkanImage())
-                                        .setSubresourceRange(subresourceRange)
-            );
+            m_cachedBufferBarriers.resize(bufferBarriers.size());
+            for (size_t i = 0; i < bufferBarriers.size(); ++i)
+            {
+                const auto& barrier = bufferBarriers[i];
+                auto* vkBuffer = static_cast<VKBuffer*>(barrier.Buffer.get());
+                auto& vkBarrier = m_cachedBufferBarriers[i];
+                vkBarrier.srcAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.SrcAccess));
+                vkBarrier.dstAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.DstAccess));
+                vkBarrier.srcQueueFamilyIndex = barrier.SrcQueueFamilyIndex;
+                vkBarrier.dstQueueFamilyIndex = barrier.DstQueueFamilyIndex;
+                vkBarrier.buffer = vkBuffer->GetHandle();
+                vkBarrier.offset = barrier.Offset;
+                vkBarrier.size = barrier.Size;
+            }
+        }
+        if (!textureBarriers.empty())
+        {
+            m_cachedImageBarriers.resize(textureBarriers.size());
+            for (size_t i = 0; i < textureBarriers.size(); ++i)
+            {
+                const auto& barrier = textureBarriers[i];
+                auto* vkTexture = static_cast<VKTexture*>(barrier.Texture.get());
+                auto& vkBarrier = m_cachedImageBarriers[i];
+                vkBarrier.srcAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.SrcAccess));
+                vkBarrier.dstAccessMask = static_cast<vk::AccessFlags>(FastConvert::AccessFlags(barrier.DstAccess));
+                vkBarrier.oldLayout = static_cast<vk::ImageLayout>(FastConvert::ImageLayout(barrier.OldLayout));
+                vkBarrier.newLayout = static_cast<vk::ImageLayout>(FastConvert::ImageLayout(barrier.NewLayout));
+                vkBarrier.srcQueueFamilyIndex = barrier.SrcQueueFamilyIndex;
+                vkBarrier.dstQueueFamilyIndex = barrier.DstQueueFamilyIndex;
+                vkBarrier.image = vkTexture->GetHandle();
+                vkBarrier.subresourceRange.aspectMask = static_cast<vk::ImageAspectFlags>(
+                    FastConvert::ImageAspectFlags(barrier.SubresourceRange.AspectMask));
+                vkBarrier.subresourceRange.baseMipLevel = barrier.SubresourceRange.BaseMipLevel;
+                vkBarrier.subresourceRange.levelCount = barrier.SubresourceRange.LevelCount;
+                vkBarrier.subresourceRange.baseArrayLayer = barrier.SubresourceRange.BaseArrayLayer;
+                vkBarrier.subresourceRange.layerCount = barrier.SubresourceRange.LayerCount;
+            }
         }
         m_commandBuffer.pipelineBarrier(
-            vkSrcStage,
-            vkDstStage,
+            static_cast<vk::PipelineStageFlags>(vkSrcStage),
+            static_cast<vk::PipelineStageFlags>(vkDstStage),
             vk::DependencyFlags(),
-            static_cast<uint32_t>(vkGlobalBarriers.size()), vkGlobalBarriers.data(),
-            static_cast<uint32_t>(vkBufferBarriers.size()), vkBufferBarriers.data(),
-            static_cast<uint32_t>(vkTextureBarriers.size()), vkTextureBarriers.data()
+            m_cachedMemoryBarriers,
+            m_cachedBufferBarriers,
+            m_cachedImageBarriers
+        );
+    }
+    namespace
+    {
+        struct TransitionParams
+        {
+            VkPipelineStageFlags srcStage;
+            VkPipelineStageFlags dstStage;
+            VkAccessFlags srcAccess;
+            VkAccessFlags dstAccess;
+            VkImageLayout oldLayout;
+            VkImageLayout newLayout;
+        };
+        constexpr TransitionParams kImageTransitionLUT[] = {
+            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+             0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+             0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL},
+            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             0, VK_ACCESS_TRANSFER_WRITE_BIT,
+             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
+            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             0, VK_ACCESS_SHADER_READ_BIT,
+             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+             0, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL},
+            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0,
+             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR},
+            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+            {VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
+             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
+            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL},
+            {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+             0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+             VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
+        };
+        struct BufferTransitionParams
+        {
+            VkPipelineStageFlags srcStage;
+            VkPipelineStageFlags dstStage;
+            VkAccessFlags srcAccess;
+            VkAccessFlags dstAccess;
+        };
+        constexpr BufferTransitionParams kBufferTransitionLUT[] = {
+            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT},
+            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT},
+            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT},
+            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT},
+            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT},
+            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT},
+            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT},
+            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT},
+        };
+        struct MemoryTransitionParams
+        {
+            VkPipelineStageFlags srcStage;
+            VkPipelineStageFlags dstStage;
+            VkAccessFlags srcAccess;
+            VkAccessFlags dstAccess;
+        };
+        constexpr MemoryTransitionParams kMemoryTransitionLUT[] = {
+            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
+            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT},
+            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT},
+        };
+    }
+    void VKCommandBufferEncoder::TransitionImage(
+        const Ref<Texture>& texture,
+        ImageTransition transition,
+        const ImageSubresourceRange& range)
+    {
+        const auto& params = kImageTransitionLUT[static_cast<uint8_t>(transition)];
+        VkImageMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = params.srcAccess;
+        barrier.dstAccessMask = params.dstAccess;
+        barrier.oldLayout = params.oldLayout;
+        barrier.newLayout = params.newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = static_cast<VKTexture*>(texture.get())->GetHandle();
+        barrier.subresourceRange.aspectMask = static_cast<VkImageAspectFlags>(range.AspectMask);
+        barrier.subresourceRange.baseMipLevel = range.BaseMipLevel;
+        barrier.subresourceRange.levelCount = range.LevelCount;
+        barrier.subresourceRange.baseArrayLayer = range.BaseArrayLayer;
+        barrier.subresourceRange.layerCount = range.LayerCount;
+        vkCmdPipelineBarrier(
+            m_commandBuffer,
+            params.srcStage,
+            params.dstStage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+    }
+    void VKCommandBufferEncoder::TransitionImageFast(
+        VkImage image,
+        ImageTransition transition,
+        uint32_t baseMipLevel,
+        uint32_t levelCount,
+        uint32_t baseArrayLayer,
+        uint32_t layerCount,
+        VkImageAspectFlags aspectMask)
+    {
+        const auto& params = kImageTransitionLUT[static_cast<uint8_t>(transition)];
+        VkImageMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = params.srcAccess;
+        barrier.dstAccessMask = params.dstAccess;
+        barrier.oldLayout = params.oldLayout;
+        barrier.newLayout = params.newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = image;
+        barrier.subresourceRange.aspectMask = aspectMask;
+        barrier.subresourceRange.baseMipLevel = baseMipLevel;
+        barrier.subresourceRange.levelCount = levelCount;
+        barrier.subresourceRange.baseArrayLayer = baseArrayLayer;
+        barrier.subresourceRange.layerCount = layerCount;
+        vkCmdPipelineBarrier(
+            m_commandBuffer,
+            params.srcStage,
+            params.dstStage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+    }
+    void VKCommandBufferEncoder::TransitionBuffer(
+        const Ref<Buffer>& buffer,
+        BufferTransition transition,
+        uint64_t offset,
+        uint64_t size)
+    {
+        TransitionBufferFast(
+            static_cast<VKBuffer*>(buffer.get())->GetHandle(),
+            transition, offset, size);
+    }
+    void VKCommandBufferEncoder::TransitionBufferFast(
+        VkBuffer buffer,
+        BufferTransition transition,
+        uint64_t offset,
+        uint64_t size)
+    {
+        const auto& params = kBufferTransitionLUT[static_cast<uint8_t>(transition)];
+        VkBufferMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = params.srcAccess;
+        barrier.dstAccessMask = params.dstAccess;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = buffer;
+        barrier.offset = offset;
+        barrier.size = size;
+        vkCmdPipelineBarrier(
+            m_commandBuffer,
+            params.srcStage,
+            params.dstStage,
+            0,
+            0, nullptr,
+            1, &barrier,
+            0, nullptr
+        );
+    }
+    void VKCommandBufferEncoder::MemoryBarrierFast(MemoryTransition transition)
+    {
+        const auto& params = kMemoryTransitionLUT[static_cast<uint8_t>(transition)];
+        VkMemoryBarrier barrier;
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.srcAccessMask = params.srcAccess;
+        barrier.dstAccessMask = params.dstAccess;
+        vkCmdPipelineBarrier(
+            m_commandBuffer,
+            params.srcStage,
+            params.dstStage,
+            0,
+            1, &barrier,
+            0, nullptr,
+            0, nullptr
+        );
+    }
+    void VKCommandBufferEncoder::ExecuteNative(const std::function<void(void* nativeCommandBuffer)>& func)
+    {
+        func(&m_commandBuffer);
+    }
+    void VKCommandBufferEncoder::CopyBufferToImage(
+        const Ref<Buffer>& srcBuffer,
+        const Ref<Texture>& dstImage,
+        ImageLayout dstImageLayout,
+        std::span<const BufferImageCopy> regions)
+    {
+        auto* vkBuffer = static_cast<VKBuffer*>(srcBuffer.get());
+        auto* vkTexture = static_cast<VKTexture*>(dstImage.get());
+        std::vector<VkBufferImageCopy> vkRegions(regions.size());
+        for (size_t i = 0; i < regions.size(); ++i)
+        {
+            const auto& region = regions[i];
+            auto& vkRegion = vkRegions[i];
+            vkRegion.bufferOffset = region.BufferOffset;
+            vkRegion.bufferRowLength = region.BufferRowLength;
+            vkRegion.bufferImageHeight = region.BufferImageHeight;
+            vkRegion.imageSubresource.aspectMask = static_cast<VkImageAspectFlags>(
+                FastConvert::ImageAspectFlags(region.ImageSubresource.AspectMask));
+            vkRegion.imageSubresource.mipLevel = region.ImageSubresource.MipLevel;
+            vkRegion.imageSubresource.baseArrayLayer = region.ImageSubresource.BaseArrayLayer;
+            vkRegion.imageSubresource.layerCount = region.ImageSubresource.LayerCount;
+            vkRegion.imageOffset = {region.ImageOffsetX, region.ImageOffsetY, region.ImageOffsetZ};
+            vkRegion.imageExtent = {region.ImageExtentWidth, region.ImageExtentHeight, region.ImageExtentDepth};
+        }
+        vkCmdCopyBufferToImage(
+            m_commandBuffer,
+            vkBuffer->GetHandle(),
+            vkTexture->GetHandle(),
+            FastConvert::ImageLayout(dstImageLayout),
+            static_cast<uint32_t>(vkRegions.size()),
+            vkRegions.data()
         );
     }
 }

@@ -1,15 +1,15 @@
 #ifndef CACAO_VKSURFACE_H
 #define CACAO_VKSURFACE_H
-#include "CacaoSurface.h"
+#include "Surface.h"
 #include  <vulkan/vulkan.hpp>
 namespace Cacao
 {
-    class CacaoDevice;
+    class Device;
     class VKQueue;
 }
 namespace Cacao
 {
-    class CACAO_API VKSurface : public CacaoSurface
+    class CACAO_API VKSurface : public Surface
     {
         vk::SurfaceKHR m_surface;
         SurfaceCapabilities m_surfaceCapabilities;
@@ -19,11 +19,11 @@ namespace Cacao
         vk::SurfaceKHR& GetVulkanSurface() { return m_surface; }
     public:
         VKSurface(const vk::SurfaceKHR& surface);
-        SurfaceCapabilities GetCapabilities(const Ref<CacaoAdapter>& adapter) override;
-        std::vector<SurfaceFormat> GetSupportedFormats(const Ref<CacaoAdapter>& adapter) override;
-        std::vector<PresentMode> GetSupportedPresentModes(const Ref<CacaoAdapter>& adapter) override;
-        uint32_t GetPresentQueueFamilyIndex(const Ref<CacaoAdapter>& adapter) const;
-        Ref<CacaoQueue> GetPresentQueue(const Ref<CacaoDevice>& device) override;
+        SurfaceCapabilities GetCapabilities(const Ref<Adapter>& adapter) override;
+        std::vector<SurfaceFormat> GetSupportedFormats(const Ref<Adapter>& adapter) override;
+        std::vector<PresentMode> GetSupportedPresentModes(const Ref<Adapter>& adapter) override;
+        uint32_t GetPresentQueueFamilyIndex(const Ref<Adapter>& adapter) const;
+        Ref<Queue> GetPresentQueue(const Ref<Device>& device) override;
     };
 }
 #endif 

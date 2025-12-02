@@ -1,14 +1,14 @@
 #include <Impls/Vulkan/VKInstance.h>
 #include <Impls/Vulkan/VKAdapter.h>
 #include <Impls/Vulkan/VKSurface.h>
-#include "CacaoShaderCompiler.h"
+#include "ShaderCompiler.h"
 namespace Cacao
 {
-    CacaoType VKInstance::GetType() const
+    BackendType VKInstance::GetType() const
     {
-        return CacaoType::Vulkan;
+        return BackendType::Vulkan;
     }
-    bool VKInstance::Initialize(const CacaoInstanceCreateInfo& createInfo)
+    bool VKInstance::Initialize(const InstanceCreateInfo& createInfo)
     {
         m_createInfo = createInfo;
         vk::ApplicationInfo appInfo = vk::ApplicationInfo()
@@ -31,28 +31,28 @@ namespace Cacao
         std::vector<const char*> enabledExtensionNames;
         for (const auto& feature : createInfo.enabledFeatures)
         {
-            if (feature == CacaoInstanceFeature::ValidationLayer)
+            if (feature == InstanceFeature::ValidationLayer)
             {
                 enabledLayerNames.push_back("VK_LAYER_KHRONOS_validation");
             }
             switch (feature)
             {
-            case CacaoInstanceFeature::Surface:
+            case InstanceFeature::Surface:
                 enabledExtensionNames.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
                 break;
-            case CacaoInstanceFeature::RayTracing:
+            case InstanceFeature::RayTracing:
                 enabledExtensionNames.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
                 enabledExtensionNames.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
                 enabledExtensionNames.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
                 break;
-            case CacaoInstanceFeature::BindlessDescriptors:
+            case InstanceFeature::BindlessDescriptors:
                 enabledExtensionNames.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
                 break;
-            case CacaoInstanceFeature::MeshShader:
+            case InstanceFeature::MeshShader:
                 enabledExtensionNames.push_back(VK_NV_MESH_SHADER_EXTENSION_NAME);
                 break;
             default:
-            case CacaoInstanceFeature::ValidationLayer:
+            case InstanceFeature::ValidationLayer:
                 break;
             }
         }
@@ -93,9 +93,9 @@ namespace Cacao
         }
         return true;
     }
-    std::vector<Ref<CacaoAdapter>> VKInstance::EnumerateAdapters()
+    std::vector<Ref<Adapter>> VKInstance::EnumerateAdapters()
     {
-        std::vector<Ref<CacaoAdapter>> adapters;
+        std::vector<Ref<Adapter>> adapters;
         auto physicalDevices = m_instance.enumeratePhysicalDevices();
         adapters.resize(physicalDevices.size());
         for (int i = 0; i < physicalDevices.size(); i++)
@@ -104,7 +104,7 @@ namespace Cacao
         }
         return adapters;
     }
-    bool VKInstance::IsFeatureEnabled(CacaoInstanceFeature feature) const
+    bool VKInstance::IsFeatureEnabled(InstanceFeature feature) const
     {
         for (const auto& enabledFeature : m_createInfo.enabledFeatures)
         {
@@ -115,7 +115,7 @@ namespace Cacao
         }
         return false;
     }
-    Ref<CacaoSurface> VKInstance::CreateSurface(const NativeWindowHandle& windowHandle)
+    Ref<Surface> VKInstance::CreateSurface(const NativeWindowHandle& windowHandle)
     {
         if (!windowHandle.IsValid())
         {
@@ -174,8 +174,8 @@ namespace Cacao
         }
         return Cacao::CreateRef<VKSurface>(surface);
     }
-    Ref<CacaoShaderCompiler> VKInstance::CreateShaderCompiler()
+    Ref<ShaderCompiler> VKInstance::CreateShaderCompiler()
     {
-        return CacaoShaderCompiler::Create(CacaoType::Vulkan);
+        return ShaderCompiler::Create(BackendType::Vulkan);
     }
 }

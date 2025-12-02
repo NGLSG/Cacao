@@ -4,7 +4,7 @@
 #include "Impls/Vulkan/VKSynchronization.h"
 namespace Cacao
 {
-    VKQueue::VKQueue(const Ref<CacaoDevice>& device, const vk::Queue& vkQueue, QueueType type, uint32_t index) :
+    VKQueue::VKQueue(const Ref<Device>& device, const vk::Queue& vkQueue, QueueType type, uint32_t index) :
         m_device(device), m_queue(vkQueue), m_type(type), m_index(index)
     {
         if (!m_device)
@@ -16,7 +16,7 @@ namespace Cacao
             throw std::runtime_error("VKQueue created with invalid vk::Queue");
         }
     }
-    Ref<VKQueue> VKQueue::Create(const Ref<CacaoDevice>& device, const vk::Queue& vkQueue, QueueType type,
+    Ref<VKQueue> VKQueue::Create(const Ref<Device>& device, const vk::Queue& vkQueue, QueueType type,
                                  uint32_t index)
     {
         return CreateRef<VKQueue>(device, vkQueue, type, index);
@@ -29,16 +29,16 @@ namespace Cacao
     {
         return m_index;
     }
-    void VKQueue::Submit(const Ref<CacaoCommandBufferEncoder>& cmd, const Ref<CacaoSynchronization>& sync,
+    void VKQueue::Submit(const Ref<CommandBufferEncoder>& cmd, const Ref<Synchronization>& sync,
                          uint32_t frameIndex)
     {
-        auto vkCmd = std::static_pointer_cast<VKCommandBufferEncoder>(cmd);
-        auto vkSync = std::static_pointer_cast<VKSynchronization>(sync);
+        auto* vkCmd = static_cast<VKCommandBufferEncoder*>(cmd.get());
+        auto* vkSync = static_cast<VKSynchronization*>(sync.get());
         vk::Semaphore waitSem = vkSync->GetImageSemaphore(frameIndex);
         vk::Semaphore signalSem = vkSync->GetRenderSemaphore(frameIndex);
         vk::Fence fence = vkSync->GetInFlightFence(frameIndex);
         vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        vk::CommandBuffer buffer = vkCmd->GetVulkanCommandBuffer();
+        vk::CommandBuffer buffer = vkCmd->GetHandle();
         vk::SubmitInfo submitInfo = vk::SubmitInfo()
                                     .setWaitSemaphoreCount(1)
                                     .setPWaitSemaphores(&waitSem)
@@ -56,17 +56,16 @@ namespace Cacao
             }
         }
     }
-    void VKQueue::Submit(const std::vector<Ref<CacaoCommandBufferEncoder>>& cmds, const Ref<CacaoSynchronization>& sync,
+    void VKQueue::Submit(std::span<const Ref<CommandBufferEncoder>> cmds, const Ref<Synchronization>& sync,
                          uint32_t frameIndex)
     {
         if (cmds.empty()) return;
-        auto vkSync = std::static_pointer_cast<VKSynchronization>(sync);
+        auto* vkSync = static_cast<VKSynchronization*>(sync.get());
         std::vector<vk::CommandBuffer> cmdHandles;
         cmdHandles.reserve(cmds.size());
         for (const auto& cmd : cmds)
         {
-            auto vkCmd = std::static_pointer_cast<VKCommandBufferEncoder>(cmd);
-            cmdHandles.push_back(vkCmd->GetVulkanCommandBuffer());
+            cmdHandles.push_back(static_cast<VKCommandBufferEncoder*>(cmd.get())->GetHandle());
         }
         vk::Semaphore waitSem = vkSync->GetImageSemaphore(frameIndex);
         vk::Semaphore signalSem = vkSync->GetRenderSemaphore(frameIndex);
@@ -89,10 +88,9 @@ namespace Cacao
             }
         }
     }
-    void VKQueue::Submit(const Ref<CacaoCommandBufferEncoder>& cmd)
+    void VKQueue::Submit(const Ref<CommandBufferEncoder>& cmd)
     {
-        auto vkCmd = std::static_pointer_cast<VKCommandBufferEncoder>(cmd);
-        vk::CommandBuffer cmdHandle = vkCmd->GetVulkanCommandBuffer();
+        vk::CommandBuffer cmdHandle = static_cast<VKCommandBufferEncoder*>(cmd.get())->GetHandle();
         vk::SubmitInfo submitInfo = vk::SubmitInfo()
                                     .setCommandBufferCount(1)
                                     .setPCommandBuffers(&cmdHandle);

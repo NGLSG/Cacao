@@ -31,6 +31,5 @@ target_include_directories(Cacao PUBLIC include)
 
 target_link_libraries(Cacao PUBLIC Vulkan::Vulkan slang)
 
-add_executable(Test main.cpp VkContext.cpp SynchronizationContext.cpp)
-
+add_executable(Test main.cpp)
 target_link_libraries(Test PRIVATE Cacao)

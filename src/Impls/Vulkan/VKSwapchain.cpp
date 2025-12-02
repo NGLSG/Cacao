@@ -1,6 +1,6 @@
 #include "Impls/Vulkan/VKSwapchain.h"
-#include "CacaoAdapter.h"
-#include "CacaoSynchronization.h"
+#include "Adapter.h"
+#include "Synchronization.h"
 #include "Impls/Vulkan/VKAdapter.h"
 #include "Impls/Vulkan/VKConvert.h"
 #include "Impls/Vulkan/VKDevice.h"
@@ -10,11 +10,11 @@
 #include "Impls/Vulkan/VKQueue.h"
 namespace Cacao
 {
-    Ref<VKSwapchain> VKSwapchain::Create(const Ref<CacaoDevice>& device, const SwapchainCreateInfo& createInfo)
+    Ref<VKSwapchain> VKSwapchain::Create(const Ref<Device>& device, const SwapchainCreateInfo& createInfo)
     {
         return CreateRef<VKSwapchain>(device, createInfo);
     }
-    VKSwapchain::VKSwapchain(const Ref<CacaoDevice>& device, const SwapchainCreateInfo& createInfo) :
+    VKSwapchain::VKSwapchain(const Ref<Device>& device, const SwapchainCreateInfo& createInfo) :
         m_device(std::dynamic_pointer_cast<VKDevice>(device)),
         m_swapchainCreateInfo(createInfo)
     {
@@ -161,8 +161,8 @@ namespace Cacao
             m_imageViews.push_back(imageView);
         }
     }
-    Result VKSwapchain::Present(const Ref<CacaoQueue>& queue,
-                                const Ref<CacaoSynchronization>& sync, uint32_t frameIndex)
+    Result VKSwapchain::Present(const Ref<Queue>& queue,
+                                const Ref<Synchronization>& sync, uint32_t frameIndex)
     {
         vk::PresentInfoKHR present{};
         auto vkContext = std::dynamic_pointer_cast<VKDevice>(m_device);
@@ -211,7 +211,7 @@ namespace Cacao
     {
         return m_images.size();
     }
-    Ref<CacaoTexture> VKSwapchain::GetBackBuffer(uint32_t index) const
+    Ref<Texture> VKSwapchain::GetBackBuffer(uint32_t index) const
     {
         TextureCreateInfo info{};
         info.Type = TextureType::Texture2D;
@@ -257,7 +257,7 @@ namespace Cacao
     {
         return m_swapchainCreateInfo.PresentMode;
     }
-    Result VKSwapchain::AcquireNextImage(const Ref<CacaoSynchronization>& sync, int idx, int& out)
+    Result VKSwapchain::AcquireNextImage(const Ref<Synchronization>& sync, int idx, int& out)
     {
         if (!sync)
         {

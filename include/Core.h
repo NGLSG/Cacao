@@ -4,6 +4,7 @@
 #include <string>
 #include <filesystem>
 #include <vector>
+#include <span>
 #include <fstream>
 #ifdef _WIN32
 #ifdef CACAO_BUILD_DLL

@@ -1,6 +1,6 @@
 #include "Impls/Vulkan/VKShaderModule.h"
 #include "Impls/Vulkan/VKDevice.h"
-Cacao::VKShaderModule::VKShaderModule(const Ref<CacaoDevice>& device, const ShaderCreateInfo& info,
+Cacao::VKShaderModule::VKShaderModule(const Ref<Device>& device, const ShaderCreateInfo& info,
                                       const ShaderBlob& blob) : m_shaderBlob(blob), m_createInfo(info)
 {
     if (!device)
@@ -21,7 +21,7 @@ Cacao::VKShaderModule::VKShaderModule(const Ref<CacaoDevice>& device, const Shad
         throw std::runtime_error("Failed to create Vulkan Shader Module");
     }
 }
-Cacao::Ref<Cacao::VKShaderModule> Cacao::VKShaderModule::Create(const Ref<CacaoDevice>& device,
+Cacao::Ref<Cacao::VKShaderModule> Cacao::VKShaderModule::Create(const Ref<Device>& device,
                                                                 const ShaderCreateInfo& info, const ShaderBlob& blob)
 {
     return CreateRef<VKShaderModule>(device, info, blob);

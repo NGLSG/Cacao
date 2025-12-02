@@ -34,26 +34,26 @@
 #define VK_USE_PLATFORM_METAL_EXT
 #include <TargetConditionals.h>
 #endif
-#include <CacaoInstance.h>
+#include <Instance.h>
 #include <vulkan/vulkan.hpp>
 namespace Cacao
 {
-    class CACAO_API VKInstance : public CacaoInstance
+    class CACAO_API VKInstance : public Instance
     {
     private:
         vk::Instance m_instance;
-        CacaoInstanceCreateInfo m_createInfo;
+        InstanceCreateInfo m_createInfo;
         friend class VKInstance;
         friend class VKDevice;
         friend class VKAdapter;
         vk::Instance& GetVulkanInstance() { return m_instance; }
     public:
-        [[nodiscard]] CacaoType GetType() const override;
-        bool Initialize(const CacaoInstanceCreateInfo& createInfo) override;
-        std::vector<Ref<CacaoAdapter>> EnumerateAdapters() override;
-        bool IsFeatureEnabled(CacaoInstanceFeature feature) const override;
-        Ref<CacaoSurface> CreateSurface(const NativeWindowHandle& windowHandle) override;
-        Ref<CacaoShaderCompiler> CreateShaderCompiler() override;
+        [[nodiscard]] BackendType GetType() const override;
+        bool Initialize(const InstanceCreateInfo& createInfo) override;
+        std::vector<Ref<Adapter>> EnumerateAdapters() override;
+        bool IsFeatureEnabled(InstanceFeature feature) const override;
+        Ref<Surface> CreateSurface(const NativeWindowHandle& windowHandle) override;
+        Ref<ShaderCompiler> CreateShaderCompiler() override;
     };
 }
 #endif 

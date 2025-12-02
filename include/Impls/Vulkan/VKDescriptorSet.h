@@ -1,15 +1,15 @@
 #ifndef CACAO_VKDESCRIPTORSET_H
 #define CACAO_VKDESCRIPTORSET_H
 #include <list>
-#include "CacaoDescriptorSet.h"
+#include "DescriptorSet.h"
 #include <vulkan/vulkan.hpp>
 namespace Cacao
 {
     class VKDescriptorSetLayout;
     class VKDescriptorPool;
-    class CacaoDevice;
+    class Device;
     class VKDevice;
-    class CACAO_API VKDescriptorSet : public CacaoDescriptorSet
+    class CACAO_API VKDescriptorSet : public DescriptorSet
     {
     private:
         vk::DescriptorSet m_descriptorSet;
@@ -27,18 +27,20 @@ namespace Cacao
     public:
         static vk::DescriptorBufferInfo ConvertToVkBufferInfo(const BufferWriteInfo& info);
         static vk::DescriptorImageInfo ConvertToVkImageInfo(const TextureWriteInfo& info);
-        VKDescriptorSet(const Ref<CacaoDevice>& device, const Ref<CacaoDescriptorPool>& parent,
-                        const Ref<CacaoDescriptorSetLayout>& layout,
+        VKDescriptorSet(const Ref<Device>& device, const Ref<DescriptorPool>& parent,
+                        const Ref<DescriptorSetLayout>& layout,
                         const vk::DescriptorSet& descriptorSet);
-        static Ref<VKDescriptorSet> Create(const Ref<CacaoDevice>& device, const Ref<CacaoDescriptorPool>& parent,
-                                           const Ref<CacaoDescriptorSetLayout>& layout,
+        static Ref<VKDescriptorSet> Create(const Ref<Device>& device, const Ref<DescriptorPool>& parent,
+                                           const Ref<DescriptorSetLayout>& layout,
                                            const vk::DescriptorSet& descriptorSet);
         void Update() override;
         void WriteBuffer(const BufferWriteInfo& info) override;
         void WriteTexture(const TextureWriteInfo& info) override;
+        void WriteSampler(const SamplerWriteInfo& info) override;
         void WriteAccelerationStructure(const AccelerationStructureWriteInfo& info) override;
         void WriteBuffers(const BufferWriteInfos& infos) override;
         void WriteTextures(const TextureWriteInfos& infos) override;
+        void WriteSamplers(const SamplerWriteInfos& infos) override;
         void WriteAccelerationStructures(const AccelerationStructureWriteInfos& infos) override;
         vk::DescriptorSet& GetHandle() { return m_descriptorSet; }
     };

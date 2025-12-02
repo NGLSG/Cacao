@@ -1,6 +1,6 @@
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKDevice.h"
-Cacao::VKBuffer::VKBuffer(const Ref<CacaoDevice>& device, const VmaAllocator& allocator, const BufferCreateInfo& info) :
+Cacao::VKBuffer::VKBuffer(const Ref<Device>& device, const VmaAllocator& allocator, const BufferCreateInfo& info) :
     m_device(device), m_allocator(allocator), m_createInfo(info)
 {
     if (!m_device)
@@ -67,7 +67,7 @@ Cacao::VKBuffer::VKBuffer(const Ref<CacaoDevice>& device, const VmaAllocator& al
         throw std::runtime_error("Failed to create Vulkan buffer");
     }
 }
-Cacao::Ref<Cacao::VKBuffer> Cacao::VKBuffer::Create(const Ref<CacaoDevice>& device, const VmaAllocator& allocator,
+Cacao::Ref<Cacao::VKBuffer> Cacao::VKBuffer::Create(const Ref<Device>& device, const VmaAllocator& allocator,
                                                     const BufferCreateInfo& info)
 {
     return CreateRef<VKBuffer>(device, allocator, info);

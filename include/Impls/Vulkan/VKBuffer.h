@@ -1,19 +1,19 @@
 #ifndef CACAO_VKBUFFER_H
 #define CACAO_VKBUFFER_H
-#include "CacaoBuffer.h"
+#include "Buffer.h"
 #include <vulkan/vulkan.hpp>
 #include "vk_mem_alloc.h"
 namespace Cacao
 {
-    class CacaoDevice;
+    class Device;
 }
 namespace Cacao
 {
-    class CACAO_API VKBuffer final : public CacaoBuffer
+    class CACAO_API VKBuffer final : public Buffer
     {
     private:
         vk::Buffer m_buffer;
-        Ref<CacaoDevice> m_device;
+        Ref<Device> m_device;
         VmaAllocator m_allocator;
         VmaAllocation m_allocation;
         BufferCreateInfo m_createInfo;
@@ -22,8 +22,8 @@ namespace Cacao
         friend class VKCommandBufferEncoder;
         friend class VKDescriptorSet;
     public:
-        VKBuffer(const Ref<CacaoDevice>& device, const VmaAllocator& allocator, const BufferCreateInfo& info);
-        static Ref<VKBuffer> Create(const Ref<CacaoDevice>& device, const VmaAllocator& allocator,
+        VKBuffer(const Ref<Device>& device, const VmaAllocator& allocator, const BufferCreateInfo& info);
+        static Ref<VKBuffer> Create(const Ref<Device>& device, const VmaAllocator& allocator,
                                     const BufferCreateInfo& info);
         uint64_t GetSize() const override;
         BufferUsageFlags GetUsage() const override;

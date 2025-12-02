@@ -2,17 +2,17 @@
 #define CACAO_VKQUEUE_H
 #include <mutex>
 #include <vulkan/vulkan.hpp>
-#include "CacaoQueue.h"
+#include "Queue.h"
 namespace Cacao
 {
-    class CacaoDevice;
+    class Device;
 }
 namespace Cacao
 {
-    class CACAO_API VKQueue final : public CacaoQueue
+    class CACAO_API VKQueue final : public Queue
     {
         vk::Queue m_queue;
-        Ref<CacaoDevice> m_device;
+        Ref<Device> m_device;
         QueueType m_type;
         uint32_t m_index;
         std::mutex m_submitMutex;
@@ -22,16 +22,16 @@ namespace Cacao
             return m_queue;
         }
     public:
-        VKQueue(const Ref<CacaoDevice>& device, const vk::Queue& vkQueue, QueueType type, uint32_t index);
-        static Ref<VKQueue> Create(const Ref<CacaoDevice>& device, const vk::Queue& vkQueue, QueueType type,
+        VKQueue(const Ref<Device>& device, const vk::Queue& vkQueue, QueueType type, uint32_t index);
+        static Ref<VKQueue> Create(const Ref<Device>& device, const vk::Queue& vkQueue, QueueType type,
                                    uint32_t index);
         QueueType GetType() const override;
         uint32_t GetIndex() const override;
-        void Submit(const Ref<CacaoCommandBufferEncoder>& cmd, const Ref<CacaoSynchronization>& sync,
+        void Submit(const Ref<CommandBufferEncoder>& cmd, const Ref<Synchronization>& sync,
                     uint32_t frameIndex) override;
-        void Submit(const std::vector<Ref<CacaoCommandBufferEncoder>>& cmds, const Ref<CacaoSynchronization>& sync,
+        void Submit(std::span<const Ref<CommandBufferEncoder>> cmds, const Ref<Synchronization>& sync,
                     uint32_t frameIndex) override;
-        void Submit(const Ref<CacaoCommandBufferEncoder>& cmd) override;
+        void Submit(const Ref<CommandBufferEncoder>& cmd) override;
         void WaitIdle() const override;
     };
 }

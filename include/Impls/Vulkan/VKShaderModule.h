@@ -1,12 +1,12 @@
 #ifndef CACAO_VKSHADERMODULE_H
 #define CACAO_VKSHADERMODULE_H
-#include "CacaoShaderModule.h"
+#include "ShaderModule.h"
 #include <vulkan/vulkan.hpp>
 namespace Cacao
 {
-    class CacaoDevice;
+    class Device;
     class VKDevice;
-    class CACAO_API VKShaderModule : public CacaoShaderModule
+    class CACAO_API VKShaderModule : public ShaderModule
     {
         Ref<VKDevice> m_device;
         vk::ShaderModule m_module;
@@ -14,11 +14,11 @@ namespace Cacao
         ShaderCreateInfo m_createInfo;
     public:
         VKShaderModule(
-            const Ref<CacaoDevice>& device,
+            const Ref<Device>& device,
             const ShaderCreateInfo& info,
             const ShaderBlob& blob);
         static Ref<VKShaderModule> Create(
-            const Ref<CacaoDevice>& device,
+            const Ref<Device>& device,
             const ShaderCreateInfo& info,
             const ShaderBlob& blob);
         const std::string& GetEntryPoint() const override;

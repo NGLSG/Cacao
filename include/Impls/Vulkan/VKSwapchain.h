@@ -1,13 +1,13 @@
 #ifndef CACAO_VKSWAPCHAIN_H
 #define CACAO_VKSWAPCHAIN_H
-#include <CacaoSwapchain.h>
+#include <Swapchain.h>
 #include <vulkan/vulkan.hpp>
 namespace Cacao
 {
     class VKQueue;
     class VKDevice;
-    class CacaoDevice;
-    class CACAO_API VKSwapchain : public CacaoSwapchain
+    class Device;
+    class CACAO_API VKSwapchain : public Swapchain
     {
         vk::SwapchainKHR m_swapchain;
         friend class VKSynchronization;
@@ -17,16 +17,16 @@ namespace Cacao
         Ref<VKDevice> m_device;
         SwapchainCreateInfo m_swapchainCreateInfo;
     public:
-        static Ref<VKSwapchain> Create(const Ref<CacaoDevice>& device, const SwapchainCreateInfo& createInfo);
-        VKSwapchain(const Ref<CacaoDevice>& device, const SwapchainCreateInfo& createInfo);
-        Result Present(const Ref<CacaoQueue>& queue, const Ref<CacaoSynchronization>& sync,
+        static Ref<VKSwapchain> Create(const Ref<Device>& device, const SwapchainCreateInfo& createInfo);
+        VKSwapchain(const Ref<Device>& device, const SwapchainCreateInfo& createInfo);
+        Result Present(const Ref<Queue>& queue, const Ref<Synchronization>& sync,
                        uint32_t frameIndex) override;
         uint32_t GetImageCount() const override;
-        Ref<CacaoTexture> GetBackBuffer(uint32_t index) const override;
+        Ref<Texture> GetBackBuffer(uint32_t index) const override;
         Extent2D GetExtent() const override;
         Format GetFormat() const override;
         PresentMode GetPresentMode() const override;
-        Result AcquireNextImage(const Ref<CacaoSynchronization>& sync, int idx, int& out) override;
+        Result AcquireNextImage(const Ref<Synchronization>& sync, int idx, int& out) override;
         ~VKSwapchain() override;
     };
 } 

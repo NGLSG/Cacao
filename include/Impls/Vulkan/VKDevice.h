@@ -1,14 +1,23 @@
 #ifndef CACAO_VKDEVICE_H
 #define CACAO_VKDEVICE_H
 #include <queue>
+#include <mutex>
+#include <unordered_map>
+#include <thread>
 #include <vulkan/vulkan.hpp>
-#include "CacaoDevice.h"
-#include <vk_mem_alloc.h>
+#include "Device.h"
+#include "vk_mem_alloc.h"
 namespace Cacao
 {
-    class CacaoAdapter;
+    class Adapter;
     class VKCommandBufferEncoder;
-    class CACAO_API VKDevice final : public CacaoDevice
+    struct ThreadCommandPoolData
+    {
+        vk::CommandPool pool;
+        std::queue<Ref<VKCommandBufferEncoder>> primaryBuffers;
+        std::queue<Ref<VKCommandBufferEncoder>> secondaryBuffers;
+    };
+    class CACAO_API VKDevice final : public Device
     {
         vk::Device m_Device;
         friend class VKSynchronization;
@@ -29,39 +38,40 @@ namespace Cacao
         friend class VKComputePipeline;
         vk::Device& GetHandle() { return m_Device; }
         std::vector<uint32_t> m_queueFamilyIndices;
-        Ref<CacaoAdapter> m_parentAdapter;
-        vk::CommandPool m_graphicsCommandPool;
-        std::queue<Ref<VKCommandBufferEncoder>> m_primCommandBuffers;
-        std::queue<Ref<VKCommandBufferEncoder>> m_secCommandBuffers;
+        Ref<Adapter> m_parentAdapter;
+        std::mutex m_commandPoolMutex;
+        std::unordered_map<std::thread::id, ThreadCommandPoolData> m_threadCommandPools;
+        uint32_t m_graphicsQueueFamilyIndex = 0;
+        ThreadCommandPoolData& GetThreadCommandPool();
         VmaAllocator m_allocator;
         VmaAllocator& GetVmaAllocator() { return m_allocator; }
     public:
-        static Ref<VKDevice> Create(const Ref<CacaoAdapter>& adapter, const CacaoDeviceCreateInfo& createInfo);
-        VKDevice(const Ref<CacaoAdapter>& adapter, const CacaoDeviceCreateInfo& createInfo);
+        static Ref<VKDevice> Create(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo);
+        VKDevice(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo);
         ~VKDevice() override;
         void WaitIdle() const override;
-        Ref<CacaoQueue> GetQueue(QueueType type, uint32_t index) override;
-        Ref<CacaoSwapchain> CreateSwapchain(const SwapchainCreateInfo& createInfo) override;
+        Ref<Queue> GetQueue(QueueType type, uint32_t index) override;
+        Ref<Swapchain> CreateSwapchain(const SwapchainCreateInfo& createInfo) override;
         std::vector<uint32_t> GetAllQueueFamilyIndices() const override;
-        Ref<CacaoAdapter> GetParentAdapter() const override;
-        Ref<CacaoCommandBufferEncoder> CreateCommandBufferEncoder(
+        Ref<Adapter> GetParentAdapter() const override;
+        Ref<CommandBufferEncoder> CreateCommandBufferEncoder(
             CommandBufferType type = CommandBufferType::Primary) override;
         void ResetCommandPool() override;
-        void ReturnCommandBuffer(const Ref<CacaoCommandBufferEncoder>& encoder) override;
-        void FreeCommandBuffer(const Ref<CacaoCommandBufferEncoder>& encoder) override;
-        void ResetCommandBuffer(const Ref<CacaoCommandBufferEncoder>& encoder) override;
-        Ref<CacaoTexture> CreateTexture(const TextureCreateInfo& createInfo) override;
-        Ref<CacaoBuffer> CreateBuffer(const BufferCreateInfo& createInfo) override;
-        Ref<CacaoSampler> CreateSampler(const SamplerCreateInfo& createInfo) override;
-        std::shared_ptr<CacaoDescriptorSetLayout>
+        void ReturnCommandBuffer(const Ref<CommandBufferEncoder>& encoder) override;
+        void FreeCommandBuffer(const Ref<CommandBufferEncoder>& encoder) override;
+        void ResetCommandBuffer(const Ref<CommandBufferEncoder>& encoder) override;
+        Ref<Texture> CreateTexture(const TextureCreateInfo& createInfo) override;
+        Ref<Buffer> CreateBuffer(const BufferCreateInfo& createInfo) override;
+        Ref<Sampler> CreateSampler(const SamplerCreateInfo& createInfo) override;
+        std::shared_ptr<DescriptorSetLayout>
         CreateDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info) override;
-        std::shared_ptr<CacaoDescriptorPool> CreateDescriptorPool(const DescriptorPoolCreateInfo& info) override;
-        Ref<CacaoShaderModule> CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info) override;
-        Ref<CacaoPipelineLayout> CreatePipelineLayout(const PipelineLayoutCreateInfo& info) override;
-        Ref<CacaoPipelineCache> CreatePipelineCache(const std::vector<uint8_t>& initialData) override;
-        Ref<CacaoGraphicsPipeline> CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info) override;
-        Ref<CacaoComputePipeline> CreateComputePipeline(const ComputePipelineCreateInfo& info) override;
-        Ref<CacaoSynchronization> CreateSynchronization(uint32_t maxFramesInFlight) override;
+        std::shared_ptr<DescriptorPool> CreateDescriptorPool(const DescriptorPoolCreateInfo& info) override;
+        Ref<ShaderModule> CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info) override;
+        Ref<PipelineLayout> CreatePipelineLayout(const PipelineLayoutCreateInfo& info) override;
+        Ref<CacaoPipelineCache> CreatePipelineCache(std::span<const uint8_t> initialData) override;
+        Ref<GraphicsPipeline> CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info) override;
+        Ref<ComputePipeline> CreateComputePipeline(const ComputePipelineCreateInfo& info) override;
+        Ref<Synchronization> CreateSynchronization(uint32_t maxFramesInFlight) override;
     };
 }
 #endif

@@ -1,6 +1,6 @@
 #ifndef CACAO_VKPIPELINE_H
 #define CACAO_VKPIPELINE_H
-#include "CacaoPipeline.h"
+#include "Pipeline.h"
 #include <vulkan/vulkan.hpp>
 namespace Cacao
 {
@@ -8,23 +8,23 @@ namespace Cacao
 }
 namespace Cacao
 {
-    class CacaoDevice;
+    class Device;
     class CACAO_API VKPipelineCache : public CacaoPipelineCache
     {
     public:
-        VKPipelineCache(const Ref<CacaoDevice>& device,
-                        const std::vector<uint8_t>& initialData = {});
+        VKPipelineCache(const Ref<Device>& device,
+                        std::span<const uint8_t> initialData = {});
         ~VKPipelineCache() override;
-        static Ref<VKPipelineCache> Create(const Ref<CacaoDevice>& device,
-                                           const std::vector<uint8_t>& initialData = {});
+        static Ref<VKPipelineCache> Create(const Ref<Device>& device,
+                                           std::span<const uint8_t> initialData = {});
         std::vector<uint8_t> GetData() const override;
-        void Merge(const std::vector<Ref<CacaoPipelineCache>>& srcCaches) override;
+        void Merge(std::span<const Ref<CacaoPipelineCache>> srcCaches) override;
         vk::PipelineCache& GetHandle() { return m_pipelineCache; }
     private:
         vk::PipelineCache m_pipelineCache;
         Ref<VKDevice> m_device;
     };
-    class CACAO_API VKGraphicsPipeline final : public CacaoGraphicsPipeline
+    class CACAO_API VKGraphicsPipeline final : public GraphicsPipeline
     {
         vk::Pipeline m_pipeline;
         GraphicsPipelineCreateInfo m_pipelineInfo;
@@ -37,23 +37,23 @@ namespace Cacao
         std::vector<vk::Format> m_colorAttachmentFormats;
         std::vector<vk::DynamicState> m_dynamicStates;
     public:
-        VKGraphicsPipeline(const Ref<CacaoDevice>& device,
+        VKGraphicsPipeline(const Ref<Device>& device,
                            const GraphicsPipelineCreateInfo& createInfo);
         ~VKGraphicsPipeline() override;
-        static Ref<VKGraphicsPipeline> Create(const Ref<CacaoDevice>& device,
+        static Ref<VKGraphicsPipeline> Create(const Ref<Device>& device,
                                               const GraphicsPipelineCreateInfo& createInfo);
-        Ref<CacaoPipelineLayout> GetLayout() const override;
+        Ref<PipelineLayout> GetLayout() const override;
         vk::Pipeline& GetHandle() { return m_pipeline; }
     };
-    class CACAO_API VKComputePipeline : public CacaoComputePipeline
+    class CACAO_API VKComputePipeline : public ComputePipeline
     {
     public:
-        VKComputePipeline(const Ref<CacaoDevice>& device,
+        VKComputePipeline(const Ref<Device>& device,
                           const ComputePipelineCreateInfo& createInfo);
         ~VKComputePipeline() override;
-        static Ref<VKComputePipeline> Create(const Ref<CacaoDevice>& device,
+        static Ref<VKComputePipeline> Create(const Ref<Device>& device,
                                              const ComputePipelineCreateInfo& createInfo);
-        Ref<CacaoPipelineLayout> GetLayout() const override;
+        Ref<PipelineLayout> GetLayout() const override;
         vk::Pipeline GetHandle() const { return m_pipeline; }
     private:
         vk::Pipeline m_pipeline;

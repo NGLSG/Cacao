@@ -1,12 +1,12 @@
 #ifndef CACAO_VKSAMPLER_H
 #define CACAO_VKSAMPLER_H
-#include "CacaoSampler.h"
+#include "Sampler.h"
 #include <vulkan/vulkan.hpp>
 namespace Cacao
 {
-    class CacaoDevice;
+    class Device;
     class VKDevice;
-    class CACAO_API VKSampler : public CacaoSampler
+    class CACAO_API VKSampler : public Sampler
     {
     private:
         vk::Sampler m_sampler;
@@ -15,8 +15,8 @@ namespace Cacao
         friend class VKDescriptorSet;
         friend class VKDescriptorSetLayout;
     public:
-        VKSampler(const Ref<CacaoDevice>& device, const SamplerCreateInfo& createInfo);
-        static Ref<VKSampler> Create(const Ref<CacaoDevice>& device, const SamplerCreateInfo& createInfo);
+        VKSampler(const Ref<Device>& device, const SamplerCreateInfo& createInfo);
+        static Ref<VKSampler> Create(const Ref<Device>& device, const SamplerCreateInfo& createInfo);
         const SamplerCreateInfo& GetInfo() const override;
         vk::Sampler& GetHandle()
         {

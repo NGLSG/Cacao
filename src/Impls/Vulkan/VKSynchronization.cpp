@@ -15,11 +15,11 @@ namespace Cacao
     {
         return m_inFlightFences[frameIndex];
     }
-    Ref<VKSynchronization> VKSynchronization::Create(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight)
+    Ref<VKSynchronization> VKSynchronization::Create(const Ref<Device>& device, uint32_t maxFramesInFlight)
     {
         return CreateRef<VKSynchronization>(device, maxFramesInFlight);
     }
-    VKSynchronization::VKSynchronization(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight) :
+    VKSynchronization::VKSynchronization(const Ref<Device>& device, uint32_t maxFramesInFlight) :
         m_maxFramesInFlight(maxFramesInFlight)
     {
         if (!device)
@@ -54,7 +54,7 @@ namespace Cacao
             throw std::runtime_error("Resetting fence failed");
         }
     }
-    uint32_t VKSynchronization::AcquireNextImageIndex(const Ref<CacaoSwapchain>& swapchain, uint32_t frameIndex) const
+    uint32_t VKSynchronization::AcquireNextImageIndex(const Ref<Swapchain>& swapchain, uint32_t frameIndex) const
     {
         if (!swapchain)
         {

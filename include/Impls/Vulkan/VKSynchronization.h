@@ -1,12 +1,12 @@
 #ifndef CACAO_VKSYNCHRONIZATION_H
 #define CACAO_VKSYNCHRONIZATION_H
-#include "CacaoSynchronization.h"
+#include "Synchronization.h"
 #include <vulkan/vulkan.hpp>
-#include "CacaoDevice.h"
+#include "Device.h"
 namespace Cacao
 {
     class VKDevice;
-    class CACAO_API VKSynchronization : public CacaoSynchronization
+    class CACAO_API VKSynchronization : public Synchronization
     {
         uint32_t m_maxFramesInFlight;
         std::vector<vk::Semaphore> m_imageAvailableSemaphores;
@@ -20,11 +20,11 @@ namespace Cacao
         vk::Semaphore& GetRenderSemaphore(uint32_t frameIndex);
         vk::Fence& GetInFlightFence(uint32_t frameIndex);
     public:
-        static Ref<VKSynchronization> Create(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight);
-        VKSynchronization(const Ref<CacaoDevice>& device, uint32_t maxFramesInFlight);
+        static Ref<VKSynchronization> Create(const Ref<Device>& device, uint32_t maxFramesInFlight);
+        VKSynchronization(const Ref<Device>& device, uint32_t maxFramesInFlight);
         void WaitForFrame(uint32_t frameIndex) const override;
         void ResetFrameFence(uint32_t frameIndex) const override;
-        uint32_t AcquireNextImageIndex(const Ref<CacaoSwapchain>& swapchain, uint32_t frameIndex) const override;
+        uint32_t AcquireNextImageIndex(const Ref<Swapchain>& swapchain, uint32_t frameIndex) const override;
         uint32_t GetMaxFramesInFlight() const override;
         ~VKSynchronization () override;
     };

@@ -1,5 +1,5 @@
 #include <Impls/Vulkan/VKDevice.h>
-#include "CacaoBuffer.h"
+#include "Buffer.h"
 #include "Impls/Vulkan/VKAdapter.h"
 #include "Impls/Vulkan/VKBuffer.h"
 #include "Impls/Vulkan/VKCommandBufferEncoder.h"
@@ -17,12 +17,12 @@
 #include "Impls/Vulkan/VKTexture.h"
 namespace Cacao
 {
-    Ref<VKDevice> VKDevice::Create(const Ref<CacaoAdapter>& adapter, const CacaoDeviceCreateInfo& createInfo)
+    Ref<VKDevice> VKDevice::Create(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo)
     {
         auto device = CreateRef<VKDevice>(adapter, createInfo);
         return device;
     }
-    VKDevice::VKDevice(const Ref<CacaoAdapter>& adapter, const CacaoDeviceCreateInfo& createInfo)
+    VKDevice::VKDevice(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo)
     {
         if (!adapter)
         {
@@ -174,16 +174,8 @@ namespace Cacao
         {
             throw std::runtime_error("Failed to create Vulkan logical device");
         }
-        vk::CommandPoolCreateInfo commandPoolCreateInfo = vk::CommandPoolCreateInfo()
-                                                          .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-                                                          .setQueueFamilyIndex(
-                                                              std::dynamic_pointer_cast<VKAdapter>(adapter)->
-                                                              FindQueueFamilyIndex(QueueType::Graphics));
-        m_graphicsCommandPool = m_Device.createCommandPool(commandPoolCreateInfo);
-        if (!m_graphicsCommandPool)
-        {
-            throw std::runtime_error("Failed to create graphics command pool");
-        }
+        m_graphicsQueueFamilyIndex = std::dynamic_pointer_cast<VKAdapter>(adapter)->
+            FindQueueFamilyIndex(QueueType::Graphics);
         VmaAllocatorCreateInfo allocatorInfo{};
         allocatorInfo.physicalDevice = std::dynamic_pointer_cast<VKAdapter>(m_parentAdapter)->GetPhysicalDevice();
         allocatorInfo.device = m_Device;
@@ -203,11 +195,16 @@ namespace Cacao
             vmaDestroyAllocator(m_allocator);
             m_allocator = nullptr;
         }
-        if (m_graphicsCommandPool)
+        for (auto& [threadId, poolData] : m_threadCommandPools)
         {
-            m_Device.destroyCommandPool(m_graphicsCommandPool);
-            m_graphicsCommandPool = nullptr;
+            while (!poolData.primaryBuffers.empty()) poolData.primaryBuffers.pop();
+            while (!poolData.secondaryBuffers.empty()) poolData.secondaryBuffers.pop();
+            if (poolData.pool)
+            {
+                m_Device.destroyCommandPool(poolData.pool);
+            }
         }
+        m_threadCommandPools.clear();
         m_Device.destroy();
     }
     void VKDevice::WaitIdle() const
@@ -217,13 +214,13 @@ namespace Cacao
             m_Device.waitIdle();
         }
     }
-    Ref<CacaoQueue> VKDevice::GetQueue(QueueType type, uint32_t index)
+    Ref<Queue> VKDevice::GetQueue(QueueType type, uint32_t index)
     {
         uint32_t familyIndex = m_parentAdapter->FindQueueFamilyIndex(type);
         vk::Queue vkQueue = m_Device.getQueue(familyIndex, index);
         return VKQueue::Create(shared_from_this(), vkQueue, type, index);
     }
-    Ref<CacaoSwapchain> VKDevice::CreateSwapchain(const SwapchainCreateInfo& createInfo)
+    Ref<Swapchain> VKDevice::CreateSwapchain(const SwapchainCreateInfo& createInfo)
     {
         return VKSwapchain::Create(shared_from_this(), createInfo);
     }
@@ -231,46 +228,69 @@ namespace Cacao
     {
         return m_queueFamilyIndices;
     }
-    Ref<CacaoAdapter> VKDevice::GetParentAdapter() const
+    Ref<Adapter> VKDevice::GetParentAdapter() const
     {
         return m_parentAdapter;
     }
-    Ref<CacaoCommandBufferEncoder> VKDevice::CreateCommandBufferEncoder(
+    ThreadCommandPoolData& VKDevice::GetThreadCommandPool()
+    {
+        std::thread::id thisThread = std::this_thread::get_id();
+        {
+            std::lock_guard<std::mutex> lock(m_commandPoolMutex);
+            auto it = m_threadCommandPools.find(thisThread);
+            if (it != m_threadCommandPools.end())
+            {
+                return it->second;
+            }
+        }
+        vk::CommandPoolCreateInfo poolInfo = vk::CommandPoolCreateInfo()
+            .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+            .setQueueFamilyIndex(m_graphicsQueueFamilyIndex);
+        ThreadCommandPoolData newPoolData;
+        newPoolData.pool = m_Device.createCommandPool(poolInfo);
+        {
+            std::lock_guard<std::mutex> lock(m_commandPoolMutex);
+            auto [it, inserted] = m_threadCommandPools.emplace(thisThread, std::move(newPoolData));
+            return it->second;
+        }
+    }
+    Ref<CommandBufferEncoder> VKDevice::CreateCommandBufferEncoder(
         CommandBufferType type)
     {
+        auto& poolData = GetThreadCommandPool();
         switch (type)
         {
         case CommandBufferType::Primary:
             {
-                if (m_primCommandBuffers.empty())
+                if (poolData.primaryBuffers.empty())
                 {
                     vk::CommandBufferAllocateInfo allocateInfo = vk::CommandBufferAllocateInfo()
-                                                                 .setCommandPool(m_graphicsCommandPool)
+                                                                 .setCommandPool(poolData.pool)
                                                                  .setLevel(vk::CommandBufferLevel::ePrimary)
                                                                  .setCommandBufferCount(1);
                     vk::CommandBuffer commandBuffer = m_Device.allocateCommandBuffers(allocateInfo).front();
-                    m_primCommandBuffers.push(
+                    poolData.primaryBuffers.push(
                         VKCommandBufferEncoder::Create(shared_from_this(), commandBuffer, CommandBufferType::Primary));
                 }
-                auto commandBuffer = m_primCommandBuffers.front();
-                m_primCommandBuffers.pop();
+                auto commandBuffer = poolData.primaryBuffers.front();
+                poolData.primaryBuffers.pop();
                 return commandBuffer;
             }
         case CommandBufferType::Secondary:
             {
-                if (m_secCommandBuffers.empty())
+                if (poolData.secondaryBuffers.empty())
                 {
                     vk::CommandBufferAllocateInfo allocateInfo = vk::CommandBufferAllocateInfo()
-                                                                 .setCommandPool(m_graphicsCommandPool)
+                                                                 .setCommandPool(poolData.pool)
                                                                  .setLevel(vk::CommandBufferLevel::eSecondary)
                                                                  .setCommandBufferCount(1);
                     vk::CommandBuffer commandBuffer = m_Device.allocateCommandBuffers(allocateInfo).front();
-                    m_secCommandBuffers.push(
+                    poolData.secondaryBuffers.push(
                         VKCommandBufferEncoder::Create(shared_from_this(), commandBuffer,
                                                        CommandBufferType::Secondary));
                 }
-                auto commandBuffer = m_secCommandBuffers.front();
-                m_secCommandBuffers.pop();
+                auto commandBuffer = poolData.secondaryBuffers.front();
+                poolData.secondaryBuffers.pop();
                 return commandBuffer;
             }
         default:
@@ -279,71 +299,75 @@ namespace Cacao
     }
     void VKDevice::ResetCommandPool()
     {
-        m_Device.resetCommandPool(m_graphicsCommandPool);
+        auto& poolData = GetThreadCommandPool();
+        m_Device.resetCommandPool(poolData.pool);
     }
-    void VKDevice::ReturnCommandBuffer(const Ref<CacaoCommandBufferEncoder>& encoder)
+    void VKDevice::ReturnCommandBuffer(const Ref<CommandBufferEncoder>& encoder)
     {
+        auto& poolData = GetThreadCommandPool();
+        auto vkEncoder = std::static_pointer_cast<VKCommandBufferEncoder>(encoder);
         if (encoder->GetCommandBufferType() == CommandBufferType::Primary)
         {
-            m_primCommandBuffers.push(std::dynamic_pointer_cast<VKCommandBufferEncoder>(encoder));
+            poolData.primaryBuffers.push(vkEncoder);
         }
         else
         {
-            m_secCommandBuffers.push(std::dynamic_pointer_cast<VKCommandBufferEncoder>(encoder));
+            poolData.secondaryBuffers.push(vkEncoder);
         }
     }
-    void VKDevice::FreeCommandBuffer(const Ref<CacaoCommandBufferEncoder>& encoder)
+    void VKDevice::FreeCommandBuffer(const Ref<CommandBufferEncoder>& encoder)
     {
-        auto cmdBuffer = std::dynamic_pointer_cast<VKCommandBufferEncoder>(encoder);
-        m_Device.freeCommandBuffers(m_graphicsCommandPool, cmdBuffer->GetVulkanCommandBuffer());
+        auto& poolData = GetThreadCommandPool();
+        auto* cmdBuffer = static_cast<VKCommandBufferEncoder*>(encoder.get());
+        m_Device.freeCommandBuffers(poolData.pool, cmdBuffer->GetHandle());
     }
-    void VKDevice::ResetCommandBuffer(const Ref<CacaoCommandBufferEncoder>& encoder)
+    void VKDevice::ResetCommandBuffer(const Ref<CommandBufferEncoder>& encoder)
     {
-        auto cmdBuffer = std::dynamic_pointer_cast<VKCommandBufferEncoder>(encoder);
-        cmdBuffer->GetVulkanCommandBuffer().reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+        auto* cmdBuffer = static_cast<VKCommandBufferEncoder*>(encoder.get());
+        cmdBuffer->GetHandle().reset(vk::CommandBufferResetFlagBits::eReleaseResources);
     }
-    Ref<CacaoTexture> VKDevice::CreateTexture(const TextureCreateInfo& createInfo)
+    Ref<Texture> VKDevice::CreateTexture(const TextureCreateInfo& createInfo)
     {
         return VKTexture::Create(shared_from_this(), m_allocator, createInfo);
     }
-    Ref<CacaoBuffer> VKDevice::CreateBuffer(const BufferCreateInfo& createInfo)
+    Ref<Buffer> VKDevice::CreateBuffer(const BufferCreateInfo& createInfo)
     {
         return VKBuffer::Create(shared_from_this(), m_allocator, createInfo);
     }
-    Ref<CacaoSampler> VKDevice::CreateSampler(const SamplerCreateInfo& createInfo)
+    Ref<Sampler> VKDevice::CreateSampler(const SamplerCreateInfo& createInfo)
     {
         return VKSampler::Create(shared_from_this(), createInfo);
     }
-    std::shared_ptr<CacaoDescriptorSetLayout> VKDevice::CreateDescriptorSetLayout(
+    std::shared_ptr<DescriptorSetLayout> VKDevice::CreateDescriptorSetLayout(
         const DescriptorSetLayoutCreateInfo& info)
     {
         return VKDescriptorSetLayout::Create(shared_from_this(), info);
     }
-    std::shared_ptr<CacaoDescriptorPool> VKDevice::CreateDescriptorPool(const DescriptorPoolCreateInfo& info)
+    std::shared_ptr<DescriptorPool> VKDevice::CreateDescriptorPool(const DescriptorPoolCreateInfo& info)
     {
         return VKDescriptorPool::Create(shared_from_this(), info);
     }
-    Ref<CacaoShaderModule> VKDevice::CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info)
+    Ref<ShaderModule> VKDevice::CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info)
     {
         return VKShaderModule::Create(shared_from_this(), info, blob);
     }
-    Ref<CacaoPipelineLayout> VKDevice::CreatePipelineLayout(const PipelineLayoutCreateInfo& info)
+    Ref<PipelineLayout> VKDevice::CreatePipelineLayout(const PipelineLayoutCreateInfo& info)
     {
         return VKPipelineLayout::Create(shared_from_this(), info);
     }
-    Ref<CacaoPipelineCache> VKDevice::CreatePipelineCache(const std::vector<uint8_t>& initialData)
+    Ref<CacaoPipelineCache> VKDevice::CreatePipelineCache(std::span<const uint8_t> initialData)
     {
         return VKPipelineCache::Create(shared_from_this(), initialData);
     }
-    Ref<CacaoGraphicsPipeline> VKDevice::CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info)
+    Ref<GraphicsPipeline> VKDevice::CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info)
     {
         return VKGraphicsPipeline::Create(shared_from_this(), info);
     }
-    Ref<CacaoComputePipeline> VKDevice::CreateComputePipeline(const ComputePipelineCreateInfo& info)
+    Ref<ComputePipeline> VKDevice::CreateComputePipeline(const ComputePipelineCreateInfo& info)
     {
         return VKComputePipeline::Create(shared_from_this(), info);
     }
-    Ref<CacaoSynchronization> VKDevice::CreateSynchronization(uint32_t maxFramesInFlight)
+    Ref<Synchronization> VKDevice::CreateSynchronization(uint32_t maxFramesInFlight)
     {
         return VKSynchronization::Create(shared_from_this(), maxFramesInFlight);
     }

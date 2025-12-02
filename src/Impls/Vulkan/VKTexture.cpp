@@ -1,11 +1,11 @@
 #include <utility>
 #include "Impls/Vulkan/VKTexture.h"
-#include "CacaoDevice.h"
 #include "Impls/Vulkan/VKConvert.h"
+#include "Device.h"
 #include "Impls/Vulkan/VKDevice.h"
 namespace Cacao
 {
-    VKTextureView::VKTextureView(const Ref<CacaoTexture>& texture, const TextureViewDesc& desc) :
+    VKTextureView::VKTextureView(const Ref<Texture>& texture, const TextureViewDesc& desc) :
         m_desc(desc)
     {
         if (!texture)
@@ -14,7 +14,7 @@ namespace Cacao
         }
         m_texture = std::static_pointer_cast<VKTexture>(texture);
         vk::ImageViewCreateInfo viewInfo = {};
-        viewInfo.image = m_texture->GetVulkanImage();
+        viewInfo.image = m_texture->GetHandle();
         viewInfo.format = Converter::Convert(desc.FormatOverride);
         switch (desc.ViewType)
         {
@@ -48,11 +48,11 @@ namespace Cacao
             throw std::runtime_error("Failed to create image view");
         }
     }
-    Ref<VKTextureView> VKTextureView::Create(const Ref<CacaoTexture>& texture, const TextureViewDesc& desc)
+    Ref<VKTextureView> VKTextureView::Create(const Ref<Texture>& texture, const TextureViewDesc& desc)
     {
         return CreateRef<VKTextureView>(texture, desc);
     }
-    VKTextureView::VKTextureView(const Ref<CacaoTexture>& texture, const vk::ImageView& view,
+    VKTextureView::VKTextureView(const Ref<Texture>& texture, const vk::ImageView& view,
                                  TextureViewDesc desc) : m_desc(std::move(desc)), m_imageView(view)
     {
         if (!texture)
@@ -61,12 +61,12 @@ namespace Cacao
         }
         m_texture = std::static_pointer_cast<VKTexture>(texture);
     }
-    Ref<VKTextureView> VKTextureView::Create(const Ref<CacaoTexture>& texture, const vk::ImageView& view,
+    Ref<VKTextureView> VKTextureView::Create(const Ref<Texture>& texture, const vk::ImageView& view,
                                              const TextureViewDesc& desc)
     {
         return CreateRef<VKTextureView>(texture, view, desc);
     }
-    Ref<CacaoTexture> VKTextureView::GetTexture() const
+    Ref<Texture> VKTextureView::GetTexture() const
     {
         return m_texture;
     }
@@ -90,7 +90,7 @@ namespace Cacao
         texture->CreateDefaultViewIfNeeded();
         return texture;
     }
-    VKTexture::VKTexture(const Ref<CacaoDevice>& device, const VmaAllocator& allocator, const TextureCreateInfo& info)
+    VKTexture::VKTexture(const Ref<Device>& device, const VmaAllocator& allocator, const TextureCreateInfo& info)
         : m_device(device), m_allocator(allocator), m_createInfo(info)
     {
         if (!m_device)
@@ -100,21 +100,7 @@ namespace Cacao
         vk::ImageCreateInfo imageInfo{};
         imageInfo.extent = vk::Extent3D(m_createInfo.Width, m_createInfo.Height, m_createInfo.Depth);
         imageInfo.arrayLayers = m_createInfo.ArrayLayers;
-        switch (m_createInfo.Format)
-        {
-        case Format::RGBA8_UNORM: imageInfo.format = vk::Format::eR8G8B8A8Unorm; break;
-        case Format::BGRA8_UNORM: imageInfo.format = vk::Format::eB8G8R8A8Unorm; break;
-        case Format::RGBA8_SRGB: imageInfo.format = vk::Format::eR8G8B8A8Srgb; break;
-        case Format::BGRA8_SRGB: imageInfo.format = vk::Format::eB8G8R8A8Srgb; break;
-        case Format::RGBA16_FLOAT: imageInfo.format = vk::Format::eR16G16B16A16Sfloat; break;
-        case Format::RGB10A2_UNORM: imageInfo.format = vk::Format::eA2B10G10R10UnormPack32; break;
-        case Format::RGBA32_FLOAT: imageInfo.format = vk::Format::eR32G32B32A32Sfloat; break;
-        case Format::R8_UNORM: imageInfo.format = vk::Format::eR8Unorm; break;
-        case Format::R16_FLOAT: imageInfo.format = vk::Format::eR16Sfloat; break;
-        case Format::D32F: imageInfo.format = vk::Format::eD32Sfloat; break;
-        case Format::D24S8: imageInfo.format = vk::Format::eD24UnormS8Uint; break;
-        default: throw std::runtime_error("Unsupported texture format in VKTexture");
-        }
+        imageInfo.format = Converter::Convert(m_createInfo.Format);
         switch (m_createInfo.Type)
         {
         case TextureType::Texture1D:
@@ -156,20 +142,7 @@ namespace Cacao
         if (m_createInfo.Usage & TextureUsageFlags::InputAttachment) usageFlags |= vk::ImageUsageFlagBits::eInputAttachment;
         if (m_createInfo.Usage & TextureUsageFlags::TransientAttachment) usageFlags |= vk::ImageUsageFlagBits::eTransientAttachment;
         imageInfo.usage = usageFlags;
-        switch (m_createInfo.InitialLayout)
-        {
-        case ImageLayout::ColorAttachment: imageInfo.initialLayout = vk::ImageLayout::eColorAttachmentOptimal; break;
-        case ImageLayout::DepthStencilAttachment: imageInfo.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal; break;
-        case ImageLayout::DepthStencilReadOnly: imageInfo.initialLayout = vk::ImageLayout::eDepthStencilReadOnlyOptimal; break;
-        case ImageLayout::General: imageInfo.initialLayout = vk::ImageLayout::eGeneral; break;
-        case ImageLayout::ShaderReadOnly: imageInfo.initialLayout = vk::ImageLayout::eShaderReadOnlyOptimal; break;
-        case ImageLayout::TransferDst: imageInfo.initialLayout = vk::ImageLayout::eTransferDstOptimal; break;
-        case ImageLayout::TransferSrc: imageInfo.initialLayout = vk::ImageLayout::eTransferSrcOptimal; break;
-        case ImageLayout::Present: imageInfo.initialLayout = vk::ImageLayout::ePresentSrcKHR; break;
-        case ImageLayout::Preinitialized: imageInfo.initialLayout = vk::ImageLayout::ePreinitialized; break;
-        case ImageLayout::Undefined:
-        default: imageInfo.initialLayout = vk::ImageLayout::eUndefined; break;
-        }
+        imageInfo.initialLayout = Converter::Convert(m_createInfo.InitialLayout);
         imageInfo.sharingMode = vk::SharingMode::eExclusive;
         VmaAllocationCreateInfo allocCreateInfo = {};
         allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -189,7 +162,7 @@ namespace Cacao
             m_allocation = nullptr;
         }
     }
-    Ref<VKTexture> VKTexture::Create(const Ref<CacaoDevice>& device, const VmaAllocator& allocator,
+    Ref<VKTexture> VKTexture::Create(const Ref<Device>& device, const VmaAllocator& allocator,
                                      const TextureCreateInfo& info)
     {
         auto texture = CreateRef<VKTexture>(device, allocator, info);

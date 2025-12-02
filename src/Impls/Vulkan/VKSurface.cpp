@@ -11,7 +11,7 @@ namespace Cacao
             throw std::runtime_error("Invalid surface provided to VKSurface");
         }
     }
-    SurfaceCapabilities VKSurface::GetCapabilities(const Ref<CacaoAdapter>& adapter)
+    SurfaceCapabilities VKSurface::GetCapabilities(const Ref<Adapter>& adapter)
     {
         if (!adapter)
         {
@@ -67,7 +67,7 @@ namespace Cacao
         }
         return m_surfaceCapabilities;
     }
-    std::vector<SurfaceFormat> VKSurface::GetSupportedFormats(const Ref<CacaoAdapter>& adapter)
+    std::vector<SurfaceFormat> VKSurface::GetSupportedFormats(const Ref<Adapter>& adapter)
     {
         if (!adapter)
         {
@@ -139,7 +139,7 @@ namespace Cacao
         }
         return m_surfaceFormats;
     }
-    std::vector<PresentMode> VKSurface::GetSupportedPresentModes(const Ref<CacaoAdapter>& adapter)
+    std::vector<PresentMode> VKSurface::GetSupportedPresentModes(const Ref<Adapter>& adapter)
     {
         if (!adapter)
         {
@@ -170,7 +170,7 @@ namespace Cacao
         }
         return m_presentModes;
     }
-    uint32_t VKSurface::GetPresentQueueFamilyIndex(const Ref<CacaoAdapter>& adapter) const
+    uint32_t VKSurface::GetPresentQueueFamilyIndex(const Ref<Adapter>& adapter) const
     {
         if (!adapter)
         {
@@ -189,7 +189,7 @@ namespace Cacao
         }
         throw std::runtime_error("Failed to find a present queue family index.");
     }
-    Ref<CacaoQueue> VKSurface::GetPresentQueue(const Ref<CacaoDevice>& device)
+    Ref<Queue> VKSurface::GetPresentQueue(const Ref<Device>& device)
     {
         uint32_t presentQueueFamilyIndex = GetPresentQueueFamilyIndex(
             device->GetParentAdapter());
