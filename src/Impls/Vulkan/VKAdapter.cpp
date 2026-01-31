@@ -62,12 +62,12 @@ namespace Cacao
     {
         return m_adapterType;
     }
-    bool VKAdapter::IsFeatureSupported(CacaoFeature feature) const
+    bool VKAdapter::IsFeatureSupported(DeviceFeature feature) const
     {
         vk::PhysicalDeviceFeatures m_features = m_physicalDevice.getFeatures();
         switch (feature)
         {
-        case CacaoFeature::RayTracing:
+        case DeviceFeature::RayTracing:
             {
                 vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingFeatures{};
                 vk::PhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
@@ -77,7 +77,7 @@ namespace Cacao
                 m_physicalDevice.getFeatures2(&features2);
                 return rayTracingFeatures.rayTracingPipeline && accelerationStructureFeatures.accelerationStructure;
             }
-        case CacaoFeature::MeshShader:
+        case DeviceFeature::MeshShader:
             {
                 vk::PhysicalDeviceMeshShaderFeaturesNV meshShaderFeatures{};
                 vk::PhysicalDeviceFeatures2 features2{};
@@ -85,7 +85,7 @@ namespace Cacao
                 m_physicalDevice.getFeatures2(&features2);
                 return meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
             }
-        case CacaoFeature::VariableRateShading:
+        case DeviceFeature::VariableRateShading:
             {
                 vk::PhysicalDeviceFragmentShadingRateFeaturesKHR fragmentShadingRateFeatureKHR{};
                 vk::PhysicalDeviceFeatures2 features2{};
@@ -93,7 +93,7 @@ namespace Cacao
                 m_physicalDevice.getFeatures2(&features2);
                 return fragmentShadingRateFeatureKHR.pipelineFragmentShadingRate;
             }
-        case CacaoFeature::BindlessDescriptors:
+        case DeviceFeature::BindlessDescriptors:
             {
                 vk::PhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
                 vk::PhysicalDeviceFeatures2 features2{};
@@ -102,7 +102,7 @@ namespace Cacao
                 return descriptorIndexingFeatures.descriptorBindingPartiallyBound &&
                     descriptorIndexingFeatures.runtimeDescriptorArray;
             }
-        case CacaoFeature::BufferDeviceAddress:
+        case DeviceFeature::BufferDeviceAddress:
             {
                 vk::PhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
                 vk::PhysicalDeviceFeatures2 features2{};
@@ -110,11 +110,11 @@ namespace Cacao
                 m_physicalDevice.getFeatures2(&features2);
                 return bufferDeviceAddressFeatures.bufferDeviceAddress;
             }
-        case CacaoFeature::DrawIndirectCount:
+        case DeviceFeature::DrawIndirectCount:
             {
                 return m_features.drawIndirectFirstInstance;
             }
-        case CacaoFeature::ShaderFloat16:
+        case DeviceFeature::ShaderFloat16:
             {
                 vk::PhysicalDeviceShaderFloat16Int8Features float16Feature{};
                 vk::PhysicalDeviceFeatures2 features2{};
@@ -122,23 +122,24 @@ namespace Cacao
                 m_physicalDevice.getFeatures2(&features2);
                 return float16Feature.shaderFloat16;
             }
-        case CacaoFeature::ShaderInt64:
+        case DeviceFeature::ShaderInt64:
             return m_features.shaderInt64;
-        case CacaoFeature::GeometryShader:
+        case DeviceFeature::GeometryShader:
             return m_features.geometryShader;
-        case CacaoFeature::TessellationShader:
+        case DeviceFeature::TessellationShader:
             return m_features.tessellationShader;
-        case CacaoFeature::MultiViewport:
+        case DeviceFeature::MultiViewport:
             return m_features.multiViewport;
-        case CacaoFeature::IndependentBlending:
+        case DeviceFeature::IndependentBlending:
             return m_features.independentBlend;
-        case CacaoFeature::PipelineStatistics:
+        case DeviceFeature::PipelineStatistics:
             return m_features.pipelineStatisticsQuery;
         default:
             return false;
         }
     }
-    std::shared_ptr<Device> VKAdapter::CreateDevice(const DeviceCreateInfo& info)
+
+    Ref<Device> VKAdapter::CreateDevice(const DeviceCreateInfo& info)
     {
         return VKDevice::Create(shared_from_this(), info);
     }

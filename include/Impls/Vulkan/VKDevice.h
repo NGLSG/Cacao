@@ -49,7 +49,6 @@ namespace Cacao
         static Ref<VKDevice> Create(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo);
         VKDevice(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo);
         ~VKDevice() override;
-        void WaitIdle() const override;
         Ref<Queue> GetQueue(QueueType type, uint32_t index) override;
         Ref<Swapchain> CreateSwapchain(const SwapchainCreateInfo& createInfo) override;
         std::vector<uint32_t> GetAllQueueFamilyIndices() const override;

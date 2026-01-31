@@ -32,7 +32,7 @@ namespace Cacao
         void Unmap() override;
         void Flush(uint64_t offset, uint64_t size) override;
         uint64_t GetDeviceAddress() const override;
-        vk::Buffer& GetHandle()
+        const vk::Buffer& GetHandle()
         {
             return m_buffer;
         }

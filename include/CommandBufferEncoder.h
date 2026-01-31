@@ -2,6 +2,7 @@
 #define CACAO_CACAOCOMMANDBUFFERENCODER_H
 #include "Barrier.h"
 #include <functional>
+
 namespace Cacao
 {
     class Buffer;
@@ -10,6 +11,7 @@ namespace Cacao
     class ComputePipeline;
     class DescriptorSet;
     struct CMemoryBarrier;
+
     enum class ImageTransition : uint8_t
     {
         UndefinedToColorAttachment,
@@ -34,6 +36,7 @@ namespace Cacao
         GeneralToTransferDst,
         Count
     };
+
     enum class BufferTransition : uint8_t
     {
         HostWriteToVertexRead,
@@ -53,6 +56,7 @@ namespace Cacao
         ComputeWriteToIndirectRead,
         Count
     };
+
     enum class MemoryTransition : uint8_t
     {
         ComputeWriteToComputeRead,
@@ -63,6 +67,7 @@ namespace Cacao
         AllWriteToAllRead,
         Count
     };
+
     struct Viewport
     {
         float X;
@@ -72,6 +77,7 @@ namespace Cacao
         float MinDepth = 0.0f;
         float MaxDepth = 1.0f;
     };
+
     struct Rect2D
     {
         int32_t OffsetX;
@@ -79,17 +85,20 @@ namespace Cacao
         uint32_t Width;
         uint32_t Height;
     };
+
     struct ClearValue
     {
         union
         {
             float Color[4];
+
             struct
             {
                 float Depth;
                 uint32_t Stencil;
             } DepthStencil;
         };
+
         static ClearValue ColorFloat(float r, float g, float b, float a)
         {
             ClearValue v;
@@ -99,6 +108,7 @@ namespace Cacao
             v.Color[3] = a;
             return v;
         }
+
         static ClearValue DepthStencilValue(float d, uint32_t s)
         {
             ClearValue v;
@@ -107,16 +117,19 @@ namespace Cacao
             return v;
         }
     };
+
     struct ClearDepthStencilValue
     {
         float Depth;
         uint32_t Stencil;
     };
+
     enum class IndexType
     {
         UInt16,
         UInt32
     };
+
     struct ImageSubresourceLayers
     {
         ImageAspectFlags AspectMask = ImageAspectFlags::Color;
@@ -124,11 +137,12 @@ namespace Cacao
         uint32_t BaseArrayLayer = 0;
         uint32_t LayerCount = 1;
     };
+
     struct BufferImageCopy
     {
         uint64_t BufferOffset = 0;
-        uint32_t BufferRowLength = 0;   
-        uint32_t BufferImageHeight = 0; 
+        uint32_t BufferRowLength = 0;
+        uint32_t BufferImageHeight = 0;
         ImageSubresourceLayers ImageSubresource;
         int32_t ImageOffsetX = 0;
         int32_t ImageOffsetY = 0;
@@ -137,17 +151,20 @@ namespace Cacao
         uint32_t ImageExtentHeight = 0;
         uint32_t ImageExtentDepth = 1;
     };
+
     enum class AttachmentLoadOp
     {
         Load,
         Clear,
         DontCare
     };
+
     enum class AttachmentStoreOp
     {
         Store,
         DontCare
     };
+
     struct RenderingAttachmentInfo
     {
         Ref<Texture> Texture;
@@ -156,6 +173,7 @@ namespace Cacao
         ClearValue ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
         ClearDepthStencilValue ClearDepthStencil = {1.0f, 0};
     };
+
     struct RenderingInfo
     {
         Rect2D RenderArea;
@@ -164,19 +182,23 @@ namespace Cacao
         Ref<RenderingAttachmentInfo> StencilAttachment = nullptr;
         uint32_t LayerCount = 1;
     };
+
     struct CommandBufferInheritanceInfo
     {
         const RenderingInfo* pRenderingInfo = nullptr;
         bool OcclusionQueryEnable = false;
         bool PipelineStatistics = false;
     };
+
     struct CommandBufferBeginInfo
     {
         bool OneTimeSubmit = true;
         bool SimultaneousUse = false;
         const CommandBufferInheritanceInfo* InheritanceInfo = nullptr;
     };
+
     enum class CommandBufferType;
+
     class CACAO_API CommandBufferEncoder : public std::enable_shared_from_this<CommandBufferEncoder>
     {
     public:
@@ -258,6 +280,11 @@ namespace Cacao
             std::span<const BufferImageCopy> regions) = 0;
         virtual ~CommandBufferEncoder() = default;
         virtual CommandBufferType GetCommandBufferType() const =0;
+        virtual void CopyBuffer(const Ref<Buffer>& srcBuffer,
+                                const Ref<Buffer>& dstBuffer,
+                                uint64_t srcOffset,
+                                uint64_t dstOffset,
+                                uint64_t size)=0;
     };
 }
 #endif

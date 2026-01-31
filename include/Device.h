@@ -4,6 +4,7 @@
 #include "ShaderModule.h"
 namespace Cacao
 {
+    enum class DeviceFeature : uint32_t;
     class Synchronization;
 }
 namespace Cacao
@@ -32,29 +33,6 @@ namespace Cacao
     class Queue;
     class Surface;
     enum class QueueType;
-    enum class CacaoDeviceFeature : uint32_t
-    {
-        GeometryShader,
-        TessellationShader,
-        MultiDrawIndirect,
-        FillModeNonSolid,
-        WideLines,
-        SamplerAnisotropy,
-        TextureCompressionBC,
-        TextureCompressionASTC,
-        BindlessDescriptors,
-        BufferDeviceAddress,
-        MeshShader,
-        TaskShader,
-        RayTracingPipeline,
-        RayTracingQuery,
-        AccelerationStructure,
-        VariableRateShading,
-        ConditionalRendering,
-        ShaderFloat64,
-        ShaderInt16,
-        SubgroupOperations
-    };
     struct QueueRequest
     {
         QueueType Type;
@@ -63,7 +41,7 @@ namespace Cacao
     };
     struct DeviceCreateInfo
     {
-        std::vector<CacaoDeviceFeature> EnabledFeatures;
+        std::vector<DeviceFeature> EnabledFeatures;
         std::vector<QueueRequest> QueueRequests;
         Ref<Surface> CompatibleSurface = nullptr;
         void* Next = nullptr;
@@ -77,7 +55,6 @@ namespace Cacao
     {
     public:
         virtual ~Device() = default;
-        virtual void WaitIdle() const = 0;
         virtual Ref<Queue> GetQueue(QueueType type, uint32_t index = 0) = 0;
         virtual Ref<Swapchain> CreateSwapchain(const SwapchainCreateInfo& createInfo) = 0;
         virtual std::vector<uint32_t> GetAllQueueFamilyIndices() const = 0;

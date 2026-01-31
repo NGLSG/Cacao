@@ -15,6 +15,7 @@
 #include "Impls/Vulkan/VKSwapchain.h"
 #include "Impls/Vulkan/VKSynchronization.h"
 #include "Impls/Vulkan/VKTexture.h"
+
 namespace Cacao
 {
     Ref<VKDevice> VKDevice::Create(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo)
@@ -22,6 +23,7 @@ namespace Cacao
         auto device = CreateRef<VKDevice>(adapter, createInfo);
         return device;
     }
+
     VKDevice::VKDevice(const Ref<Adapter>& adapter, const DeviceCreateInfo& createInfo)
     {
         if (!adapter)
@@ -69,25 +71,25 @@ namespace Cacao
         {
             switch (feature)
             {
-            case CacaoDeviceFeature::GeometryShader:
+            case DeviceFeature::GeometryShader:
                 features10.geometryShader = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::TessellationShader:
+            case DeviceFeature::TessellationShader:
                 features10.tessellationShader = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::MultiDrawIndirect:
+            case DeviceFeature::MultiDrawIndirect:
                 features10.multiDrawIndirect = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::FillModeNonSolid:
+            case DeviceFeature::FillModeNonSolid:
                 features10.fillModeNonSolid = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::WideLines:
+            case DeviceFeature::WideLines:
                 features10.wideLines = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::SamplerAnisotropy:
+            case DeviceFeature::SamplerAnisotropy:
                 features10.samplerAnisotropy = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::BindlessDescriptors:
+            case DeviceFeature::BindlessDescriptors:
                 features12.descriptorIndexing = VK_TRUE;
                 features12.runtimeDescriptorArray = VK_TRUE;
                 features12.descriptorBindingPartiallyBound = VK_TRUE;
@@ -95,39 +97,39 @@ namespace Cacao
                 features12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
                 features12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::BufferDeviceAddress:
+            case DeviceFeature::BufferDeviceAddress:
                 features12.bufferDeviceAddress = VK_TRUE;
                 extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
                 break;
-            case CacaoDeviceFeature::TextureCompressionBC:
+            case DeviceFeature::TextureCompressionBC:
                 features10.textureCompressionBC = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::TextureCompressionASTC:
+            case DeviceFeature::TextureCompressionASTC:
                 features10.textureCompressionASTC_LDR = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::MeshShader:
+            case DeviceFeature::MeshShader:
                 meshFeatures.meshShader = VK_TRUE;
                 meshFeatures.taskShader = VK_TRUE;
                 extensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
                 break;
-            case CacaoDeviceFeature::RayTracingPipeline:
+            case DeviceFeature::RayTracingPipeline:
                 rtPipelineFeatures.rayTracingPipeline = VK_TRUE;
                 extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
                 extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
                 break;
-            case CacaoDeviceFeature::AccelerationStructure:
+            case DeviceFeature::AccelerationStructure:
                 asFeatures.accelerationStructure = VK_TRUE;
                 extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
                 extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
                 break;
-            case CacaoDeviceFeature::VariableRateShading:
+            case DeviceFeature::VariableRateShading:
                 vrsFeatures.pipelineFragmentShadingRate = VK_TRUE;
                 extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
                 break;
-            case CacaoDeviceFeature::ShaderFloat64:
+            case DeviceFeature::ShaderFloat64:
                 features10.shaderFloat64 = VK_TRUE;
                 break;
-            case CacaoDeviceFeature::ShaderInt16:
+            case DeviceFeature::ShaderInt16:
                 features10.shaderInt16 = VK_TRUE;
                 break;
             default:
@@ -187,9 +189,10 @@ namespace Cacao
             throw std::runtime_error("Failed to create VMA allocator");
         }
     }
+
     VKDevice::~VKDevice()
     {
-        WaitIdle();
+        m_Device.waitIdle();
         if (m_allocator)
         {
             vmaDestroyAllocator(m_allocator);
@@ -207,31 +210,29 @@ namespace Cacao
         m_threadCommandPools.clear();
         m_Device.destroy();
     }
-    void VKDevice::WaitIdle() const
-    {
-        if (m_Device)
-        {
-            m_Device.waitIdle();
-        }
-    }
+
     Ref<Queue> VKDevice::GetQueue(QueueType type, uint32_t index)
     {
         uint32_t familyIndex = m_parentAdapter->FindQueueFamilyIndex(type);
         vk::Queue vkQueue = m_Device.getQueue(familyIndex, index);
         return VKQueue::Create(shared_from_this(), vkQueue, type, index);
     }
+
     Ref<Swapchain> VKDevice::CreateSwapchain(const SwapchainCreateInfo& createInfo)
     {
         return VKSwapchain::Create(shared_from_this(), createInfo);
     }
+
     std::vector<uint32_t> VKDevice::GetAllQueueFamilyIndices() const
     {
         return m_queueFamilyIndices;
     }
+
     Ref<Adapter> VKDevice::GetParentAdapter() const
     {
         return m_parentAdapter;
     }
+
     ThreadCommandPoolData& VKDevice::GetThreadCommandPool()
     {
         std::thread::id thisThread = std::this_thread::get_id();
@@ -244,8 +245,8 @@ namespace Cacao
             }
         }
         vk::CommandPoolCreateInfo poolInfo = vk::CommandPoolCreateInfo()
-            .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-            .setQueueFamilyIndex(m_graphicsQueueFamilyIndex);
+                                             .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+                                             .setQueueFamilyIndex(m_graphicsQueueFamilyIndex);
         ThreadCommandPoolData newPoolData;
         newPoolData.pool = m_Device.createCommandPool(poolInfo);
         {
@@ -254,6 +255,7 @@ namespace Cacao
             return it->second;
         }
     }
+
     Ref<CommandBufferEncoder> VKDevice::CreateCommandBufferEncoder(
         CommandBufferType type)
     {
@@ -297,11 +299,13 @@ namespace Cacao
             throw std::runtime_error("Unsupported CommandBufferType in CreateCommandBufferEncoder");
         }
     }
+
     void VKDevice::ResetCommandPool()
     {
         auto& poolData = GetThreadCommandPool();
         m_Device.resetCommandPool(poolData.pool);
     }
+
     void VKDevice::ReturnCommandBuffer(const Ref<CommandBufferEncoder>& encoder)
     {
         auto& poolData = GetThreadCommandPool();
@@ -315,58 +319,71 @@ namespace Cacao
             poolData.secondaryBuffers.push(vkEncoder);
         }
     }
+
     void VKDevice::FreeCommandBuffer(const Ref<CommandBufferEncoder>& encoder)
     {
         auto& poolData = GetThreadCommandPool();
         auto* cmdBuffer = static_cast<VKCommandBufferEncoder*>(encoder.get());
         m_Device.freeCommandBuffers(poolData.pool, cmdBuffer->GetHandle());
     }
+
     void VKDevice::ResetCommandBuffer(const Ref<CommandBufferEncoder>& encoder)
     {
         auto* cmdBuffer = static_cast<VKCommandBufferEncoder*>(encoder.get());
         cmdBuffer->GetHandle().reset(vk::CommandBufferResetFlagBits::eReleaseResources);
     }
+
     Ref<Texture> VKDevice::CreateTexture(const TextureCreateInfo& createInfo)
     {
         return VKTexture::Create(shared_from_this(), m_allocator, createInfo);
     }
+
     Ref<Buffer> VKDevice::CreateBuffer(const BufferCreateInfo& createInfo)
     {
         return VKBuffer::Create(shared_from_this(), m_allocator, createInfo);
     }
+
     Ref<Sampler> VKDevice::CreateSampler(const SamplerCreateInfo& createInfo)
     {
         return VKSampler::Create(shared_from_this(), createInfo);
     }
+
     std::shared_ptr<DescriptorSetLayout> VKDevice::CreateDescriptorSetLayout(
         const DescriptorSetLayoutCreateInfo& info)
     {
         return VKDescriptorSetLayout::Create(shared_from_this(), info);
     }
+
     std::shared_ptr<DescriptorPool> VKDevice::CreateDescriptorPool(const DescriptorPoolCreateInfo& info)
     {
         return VKDescriptorPool::Create(shared_from_this(), info);
     }
+
     Ref<ShaderModule> VKDevice::CreateShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info)
     {
         return VKShaderModule::Create(shared_from_this(), info, blob);
     }
+
     Ref<PipelineLayout> VKDevice::CreatePipelineLayout(const PipelineLayoutCreateInfo& info)
     {
         return VKPipelineLayout::Create(shared_from_this(), info);
     }
+
     Ref<PipelineCache> VKDevice::CreatePipelineCache(std::span<const uint8_t> initialData)
     {
         return VKPipelineCache::Create(shared_from_this(), initialData);
     }
+
     Ref<GraphicsPipeline> VKDevice::CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info)
     {
         return VKGraphicsPipeline::Create(shared_from_this(), info);
     }
+
     Ref<ComputePipeline> VKDevice::CreateComputePipeline(const ComputePipelineCreateInfo& info)
     {
         return VKComputePipeline::Create(shared_from_this(), info);
     }
+
     Ref<Synchronization> VKDevice::CreateSynchronization(uint32_t maxFramesInFlight)
     {
         return VKSynchronization::Create(shared_from_this(), maxFramesInFlight);

@@ -103,7 +103,7 @@ namespace Cacao
             }
         }
     }
-    void VKQueue::WaitIdle() const
+    void VKQueue::WaitIdle()
     {
         m_queue.waitIdle();
     }

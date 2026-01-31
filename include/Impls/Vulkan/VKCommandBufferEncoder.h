@@ -93,7 +93,9 @@ namespace Cacao
         {
             return m_type;
         }
-        vk::CommandBuffer& GetHandle() { return m_commandBuffer; }
+        const vk::CommandBuffer& GetHandle() { return m_commandBuffer; }
+        void CopyBuffer(const Ref<Buffer>& srcBuffer, const Ref<Buffer>& dstBuffer, uint64_t srcOffset,
+                        uint64_t dstOffset, uint64_t size) override;
     };
 }
 #endif 

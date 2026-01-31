@@ -1,9 +1,11 @@
 #ifndef CACAO_CACAOADAPTER_H
 #define CACAO_CACAOADAPTER_H
+
 namespace Cacao
 {
     struct DeviceCreateInfo;
     class Device;
+
     enum class AdapterType
     {
         Discrete,
@@ -11,6 +13,7 @@ namespace Cacao
         Software,
         Unknown
     };
+
     struct AdapterProperties
     {
         uint32_t deviceID;
@@ -19,39 +22,56 @@ namespace Cacao
         AdapterType type;
         uint64_t dedicatedVideoMemory;
     };
+
     enum class QueueType
     {
         Graphics,
         Compute,
         Transfer,
-        Present 
+        Present
     };
-    enum class CacaoFeature : uint32_t
+
+    enum class DeviceFeature : uint32_t
     {
+        MultiViewport,
+        DrawIndirectCount,
         GeometryShader,
         TessellationShader,
-        MultiViewport,
-        IndependentBlending,
-        RayTracing,
-        MeshShader,
-        VariableRateShading,
+        MultiDrawIndirect,
+        FillModeNonSolid,
+        WideLines,
+        SamplerAnisotropy,
+        TextureCompressionBC,
+        TextureCompressionASTC,
         BindlessDescriptors,
         BufferDeviceAddress,
-        DrawIndirectCount,
-        ShaderFloat16,
+        MeshShader,
+        TaskShader,
+        RayTracingPipeline,
+        RayTracingQuery,
+        AccelerationStructure,
+        VariableRateShading,
+        ConditionalRendering,
+        ShaderFloat64,
+        ShaderInt16,
         ShaderInt64,
-        PipelineStatistics,
+        SubgroupOperations, RayTracing,
+        ShaderFloat16,
+        IndependentBlending,
+        PipelineStatistics
     };
+
     class CACAO_API Adapter : public std::enable_shared_from_this<Adapter>
     {
     public :
         virtual ~Adapter() = default;
         virtual AdapterProperties GetProperties() const = 0;
         virtual AdapterType GetAdapterType() const = 0;
-        virtual bool IsFeatureSupported(CacaoFeature feature) const = 0;
-        virtual std::shared_ptr<Device> CreateDevice(const DeviceCreateInfo& info) = 0;
+        virtual bool IsFeatureSupported(DeviceFeature feature) const = 0;
+        virtual Ref<Device> CreateDevice(const DeviceCreateInfo& info) = 0;
         virtual uint32_t FindQueueFamilyIndex(QueueType type) const = 0;
     };
+
     template <>
     struct to_string<AdapterType>
     {

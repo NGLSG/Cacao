@@ -3,20 +3,24 @@
 #include <fstream>
 #include "Device.h"
 #include "Instance.h"
+
 namespace Cacao
 {
     ShaderCompiler::ShaderCompiler()
     {
     }
+
     ShaderCompiler::~ShaderCompiler()
     {
     }
+
     Ref<ShaderCompiler> ShaderCompiler::Create(BackendType backend)
     {
         auto compiler = CreateRef<ShaderCompiler>();
         compiler->Initialize(backend);
         return compiler;
     }
+
     void ShaderCompiler::Initialize(BackendType backend)
     {
         m_targetBackend = backend;
@@ -30,11 +34,11 @@ namespace Cacao
         {
         case BackendType::Vulkan:
             targetDesc.format = SLANG_SPIRV;
-            targetDesc. profile = m_globalSession->findProfile("spirv_1_5");
+            targetDesc.profile = m_globalSession->findProfile("spirv_1_5");
             break;
         case BackendType::DirectX12:
             targetDesc.format = SLANG_DXIL;
-            targetDesc.profile = m_globalSession->findProfile("sm_6_5");
+            targetDesc.profile = m_globalSession->findProfile("sm_6_0");
             break;
         case BackendType::OpenGL:
         case BackendType::OpenGLES:
@@ -42,7 +46,7 @@ namespace Cacao
             targetDesc.profile = m_globalSession->findProfile("glsl_450");
             break;
         case BackendType::DirectX11:
-            targetDesc.format = SLANG_HLSL;
+            targetDesc.format = SLANG_DXBC;
             targetDesc.profile = m_globalSession->findProfile("sm_5_1");
             break;
         case BackendType::Metal:
@@ -55,13 +59,14 @@ namespace Cacao
         default:
             throw std::runtime_error("Unsupported CacaoType in CacaoShaderCompiler");
         }
-        sessionDesc. targetCount = 1;
-        sessionDesc. targets = &targetDesc;
+        sessionDesc.targetCount = 1;
+        sessionDesc.targets = &targetDesc;
         if (SLANG_FAILED(m_globalSession->createSession(sessionDesc, m_session.writeRef())))
         {
             throw std::runtime_error("Failed to create Slang session");
         }
     }
+
     std::shared_ptr<ShaderModule> ShaderCompiler::CompileOrLoad(
         const Ref<Device>& device, const ShaderCreateInfo& info)
     {
@@ -71,14 +76,14 @@ namespace Cacao
         if (std::filesystem::exists(cachePath))
         {
             std::ifstream ifs(cachePath, std::ios::binary | std::ios::ate);
-            if (! ifs)
+            if (!ifs)
             {
-                throw std::runtime_error("Failed to open shader cache file: " + cachePath. string());
+                throw std::runtime_error("Failed to open shader cache file: " + cachePath.string());
             }
             std::streamsize size = ifs.tellg();
             ifs.seekg(0, std::ios::beg);
             blob.Data.resize(size);
-            if (! ifs.read(reinterpret_cast<char*>(blob.Data.data()), size))
+            if (!ifs.read(reinterpret_cast<char*>(blob.Data.data()), size))
             {
                 throw std::runtime_error("Failed to read shader cache file: " + cachePath.string());
             }
@@ -89,20 +94,20 @@ namespace Cacao
         }
         Slang::ComPtr<slang::IBlob> diagnosticsBlob;
         Slang::ComPtr<slang::IModule> slangModule;
-        slangModule = m_session->loadModule(info.SourcePath. c_str(), diagnosticsBlob.writeRef());
+        slangModule = m_session->loadModule(info.SourcePath.c_str(), diagnosticsBlob.writeRef());
         if (diagnosticsBlob && diagnosticsBlob->getBufferSize() > 0)
         {
             std::cerr << "Shader load diagnostics:\n"
-                      << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
+                << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
         }
-        if (! slangModule)
+        if (!slangModule)
         {
             std::cerr << "Failed to load shader module: " << info.SourcePath << std::endl;
             return nullptr;
         }
         Slang::ComPtr<slang::IEntryPoint> entryPoint;
         SlangStage slangStage = ConvertShaderStageToSlang(info.Stage);
-        SlangResult result = slangModule->findEntryPointByName(info. EntryPoint.c_str(), entryPoint.writeRef());
+        SlangResult result = slangModule->findEntryPointByName(info.EntryPoint.c_str(), entryPoint.writeRef());
         if (SLANG_FAILED(result) || !entryPoint)
         {
             std::cerr << "Failed to find entry point: " << info.EntryPoint << std::endl;
@@ -114,13 +119,13 @@ namespace Cacao
         Slang::ComPtr<slang::IComponentType> composedProgram;
         result = m_session->createCompositeComponentType(
             components.data(),
-            static_cast<SlangInt>(components. size()),
+            static_cast<SlangInt>(components.size()),
             composedProgram.writeRef(),
             diagnosticsBlob.writeRef());
         if (diagnosticsBlob && diagnosticsBlob->getBufferSize() > 0)
         {
             std::cerr << "Composition diagnostics:\n"
-                      << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
+                << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
         }
         if (SLANG_FAILED(result) || !composedProgram)
         {
@@ -128,11 +133,11 @@ namespace Cacao
             return nullptr;
         }
         Slang::ComPtr<slang::IComponentType> linkedProgram;
-        result = composedProgram->link(linkedProgram. writeRef(), diagnosticsBlob. writeRef());
+        result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
         if (diagnosticsBlob && diagnosticsBlob->getBufferSize() > 0)
         {
             std::cerr << "Link diagnostics:\n"
-                      << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
+                << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
         }
         if (SLANG_FAILED(result) || !linkedProgram)
         {
@@ -141,22 +146,22 @@ namespace Cacao
         }
         Slang::ComPtr<slang::IBlob> codeBlob;
         result = linkedProgram->getEntryPointCode(
-            0,  
-            0,  
+            0,
+            0,
             codeBlob.writeRef(),
             diagnosticsBlob.writeRef());
         if (diagnosticsBlob && diagnosticsBlob->getBufferSize() > 0)
         {
             std::cerr << "Code generation diagnostics:\n"
-                      << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
+                << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << std::endl;
         }
         if (SLANG_FAILED(result) || !codeBlob)
         {
             std::cerr << "Failed to get entry point code" << std::endl;
             return nullptr;
         }
-        blob = ConvertBlob(codeBlob. get());
-        if (! blob.Data.empty())
+        blob = ConvertBlob(codeBlob.get());
+        if (!blob.Data.empty())
         {
             if (!std::filesystem::exists(m_cacheDir))
             {
@@ -165,21 +170,23 @@ namespace Cacao
             std::ofstream ofs(cachePath, std::ios::binary);
             if (ofs)
             {
-                ofs.write(reinterpret_cast<const char*>(blob.Data. data()),
-                          static_cast<std::streamsize>(blob. Data.size()));
+                ofs.write(reinterpret_cast<const char*>(blob.Data.data()),
+                          static_cast<std::streamsize>(blob.Data.size()));
                 ofs.close();
             }
         }
         return device->CreateShaderModule(blob, info);
     }
+
     void ShaderCompiler::SetCacheDirectory(const std::filesystem::path& path)
     {
         m_cacheDir = path;
-        if (! std::filesystem::exists(m_cacheDir))
+        if (!std::filesystem::exists(m_cacheDir))
         {
             std::filesystem::create_directories(m_cacheDir);
         }
     }
+
     void ShaderCompiler::PruneCache()
     {
         if (std::filesystem::exists(m_cacheDir))
@@ -190,6 +197,7 @@ namespace Cacao
             }
         }
     }
+
     size_t ShaderCompiler::CalculateHash(const ShaderCreateInfo& info) const
     {
         std::string combined = info.SourcePath + "|" + info.EntryPoint + "|" + info.Profile;
@@ -201,6 +209,7 @@ namespace Cacao
         }
         return std::hash<std::string>()(combined);
     }
+
     ShaderBlob ShaderCompiler::ConvertBlob(IBlob* blob)
     {
         ShaderBlob result;
@@ -214,12 +223,13 @@ namespace Cacao
         {
             return result;
         }
-        result.Data. assign(ptr, ptr + size);
+        result.Data.assign(ptr, ptr + size);
         result.Hash = std::hash<std::string_view>()(
             std::string_view(reinterpret_cast<const char*>(ptr), size)
         );
         return result;
     }
+
     SlangStage ShaderCompiler::ConvertShaderStageToSlang(ShaderStage stage)
     {
         switch (stage)

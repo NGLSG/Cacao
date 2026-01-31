@@ -17,7 +17,7 @@ namespace Cacao
         bool IsFeatureEnabled(InstanceFeature feature) const override;
         Ref<Surface> CreateSurface(const NativeWindowHandle& windowHandle) override;
         Ref<ShaderCompiler> CreateShaderCompiler() override;
-        ComPtr<IDXGIFactory7>& GetDXGIFactory();
+        const ComPtr<IDXGIFactory7>& GetDXGIFactory();
     };
 }
 #endif

@@ -1,5 +1,7 @@
 #include "../../../include/Impls/D3D12/D3D12Instance.h"
 
+#include <iostream>
+
 #include "ShaderCompiler.h"
 #include "Impls/D3D12/D3D12Adapter.h"
 #include "Impls/D3D12/D3D12Surface.h"
@@ -22,9 +24,10 @@ namespace Cacao
                 flags |= DXGI_CREATE_FACTORY_DEBUG;
             }
         }
-        CreateDXGIFactory2(flags, IID_PPV_ARGS(&m_dxgiFactory));
-        if (!m_dxgiFactory)
+        auto res = CreateDXGIFactory2(flags, IID_PPV_ARGS(&m_dxgiFactory));
+        if (FAILED(res))
         {
+            std::cerr << "Failed to create DXGI factory" << std::hex << res << std::endl;
             return false;
         }
         return true;
@@ -38,7 +41,7 @@ namespace Cacao
         {
             ComPtr<IDXGIAdapter4> adapter4;
             adapter.As<IDXGIAdapter4>(&adapter4);
-            if ( !adapter4 )
+            if (!adapter4)
             {
                 continue;
             }
@@ -69,7 +72,7 @@ namespace Cacao
         return ShaderCompiler::Create(GetType());
     }
 
-    ComPtr<IDXGIFactory7>& D3D12Instance::GetDXGIFactory()
+    const ComPtr<IDXGIFactory7>& D3D12Instance::GetDXGIFactory()
     {
         return m_dxgiFactory;
     }

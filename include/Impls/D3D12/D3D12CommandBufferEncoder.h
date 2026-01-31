@@ -3,16 +3,42 @@
 #ifdef WIN32
 #include "CommandBufferEncoder.h"
 #include "D3D12Common.h"
-#include "d3d12.h"
 #include "Barrier.h"
 
 namespace Cacao
 {
+    class D3D12Device;
+    class D3D12GraphicsPipeline;
+    class D3D12ComputePipeline;
+
     class CACAO_API D3D12CommandBufferEncoder : public CommandBufferEncoder
     {
-        ComPtr<ID3D12GraphicsCommandList10> m_commandList;
+        ComPtr<ID3D12GraphicsCommandList7> m_commandList;
+        ID3D12CommandAllocator* m_allocator = nullptr;
+        Ref<D3D12Device> m_device;
+        CommandBufferType m_type;
+        
+        // 当前绑定状态
+        D3D12GraphicsPipeline* m_boundGraphicsPipeline = nullptr;
+        D3D12ComputePipeline* m_boundComputePipeline = nullptr;
+        
+        // 渲染状态
+        bool m_isRendering = false;
+        std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> m_currentRTVs;
+        D3D12_CPU_DESCRIPTOR_HANDLE m_currentDSV = {};
+        bool m_hasDSV = false;
 
     public:
+        D3D12CommandBufferEncoder(const Ref<Device>& device,
+                                  ComPtr<ID3D12GraphicsCommandList> commandList,
+                                  ID3D12CommandAllocator* allocator, 
+                                  CommandBufferType type);
+        
+        static Ref<D3D12CommandBufferEncoder> Create(const Ref<Device>& device,
+                                                     ComPtr<ID3D12GraphicsCommandList> commandList,
+                                                     ID3D12CommandAllocator* allocator,
+                                                     CommandBufferType type);
+
         void Free() override;
         void Reset() override;
         void ReturnToPool() override;
@@ -52,6 +78,11 @@ namespace Cacao
         void CopyBufferToImage(const Ref<Buffer>& srcBuffer, const Ref<Texture>& dstImage, ImageLayout dstImageLayout,
                                std::span<const BufferImageCopy> regions) override;
         CommandBufferType GetCommandBufferType() const override;
+
+        ID3D12GraphicsCommandList7* GetCommandList() const { return m_commandList.Get(); }
+        ID3D12CommandAllocator* GetAllocator() const { return m_allocator; }
+        void CopyBuffer(const Ref<Buffer>& srcBuffer, const Ref<Buffer>& dstBuffer, uint64_t srcOffset,
+            uint64_t dstOffset, uint64_t size) override;
     };
 }
 #endif

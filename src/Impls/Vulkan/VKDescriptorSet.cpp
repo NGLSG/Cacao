@@ -6,6 +6,7 @@
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKTexture.h"
 #include "Impls/Vulkan/VKSampler.h"
+
 namespace Cacao
 {
     vk::DescriptorBufferInfo VKDescriptorSet::ConvertToVkBufferInfo(const BufferWriteInfo& info)
@@ -14,9 +15,10 @@ namespace Cacao
         auto vkBuffer = std::static_pointer_cast<VKBuffer>(info.Buffer);
         vkInfo.buffer = vkBuffer->GetHandle();
         vkInfo.offset = info.Offset;
-        vkInfo.range = info.Range == UINT64_MAX ? vkBuffer->GetSize() - info.Offset : info.Range;
+        vkInfo.range = info.Size == UINT64_MAX ? vkBuffer->GetSize() - info.Offset : info.Size;
         return vkInfo;
     }
+
     vk::DescriptorImageInfo VKDescriptorSet::ConvertToVkImageInfo(const TextureWriteInfo& info)
     {
         vk::DescriptorImageInfo vkInfo = {};
@@ -33,6 +35,7 @@ namespace Cacao
         }
         return vkInfo;
     }
+
     VKDescriptorSet::VKDescriptorSet(const Ref<Device>& device, const Ref<DescriptorPool>& parent,
                                      const Ref<DescriptorSetLayout>& layout,
                                      const vk::DescriptorSet& descriptorSet)
@@ -58,12 +61,14 @@ namespace Cacao
             throw std::runtime_error("VKDescriptorSet created with invalid vk::DescriptorSet");
         }
     }
+
     Ref<VKDescriptorSet> VKDescriptorSet::Create(const Ref<Device>& device, const Ref<DescriptorPool>& parent,
                                                  const Ref<DescriptorSetLayout>& layout,
                                                  const vk::DescriptorSet& descriptorSet)
     {
         return CreateRef<VKDescriptorSet>(device, parent, layout, descriptorSet);
     }
+
     void VKDescriptorSet::Update()
     {
         if (!m_pendingWrites.empty())
@@ -83,6 +88,7 @@ namespace Cacao
             m_pendingASHandleArrays.clear();
         }
     }
+
     void VKDescriptorSet::WriteBuffer(const BufferWriteInfo& info)
     {
         m_pendingBufferInfos.push_back(ConvertToVkBufferInfo(info));
@@ -96,6 +102,7 @@ namespace Cacao
         vkWriteDescriptorSet.pBufferInfo = pBufferInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteTexture(const TextureWriteInfo& info)
     {
         m_pendingImageInfos.push_back(ConvertToVkImageInfo(info));
@@ -109,6 +116,7 @@ namespace Cacao
         vkWriteDescriptorSet.pImageInfo = pImageInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteSampler(const SamplerWriteInfo& info)
     {
         vk::DescriptorImageInfo vkInfo = {};
@@ -128,6 +136,7 @@ namespace Cacao
         vkWriteDescriptorSet.pImageInfo = pImageInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteAccelerationStructure(const AccelerationStructureWriteInfo& info)
     {
         m_pendingASHandles.push_back(
@@ -147,6 +156,7 @@ namespace Cacao
         vkWriteDescriptorSet.pNext = pASInfo;
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteBuffers(const BufferWriteInfos& infos)
     {
         std::vector<vk::DescriptorBufferInfo> vkBufferInfos;
@@ -158,7 +168,8 @@ namespace Cacao
                     infos.Binding,
                     infos.Buffers[i],
                     infos.Offsets.size() > i ? infos.Offsets[i] : 0,
-                    infos.Ranges.size() > i ? infos.Ranges[i] : UINT64_MAX,
+                    infos.Strides.size() > i ? infos.Strides[i] : 0,
+                    infos.Sizes.size() > i ? infos.Sizes[i] : UINT64_MAX,
                     infos.Type,
                     infos.ArrayElement + static_cast<uint32_t>(i)
                 });
@@ -174,6 +185,7 @@ namespace Cacao
         vkWriteDescriptorSet.pBufferInfo = pBufferInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteTextures(const TextureWriteInfos& infos)
     {
         std::vector<vk::DescriptorImageInfo> vkImageInfos;
@@ -201,6 +213,7 @@ namespace Cacao
         vkWriteDescriptorSet.pImageInfo = pImageInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteSamplers(const SamplerWriteInfos& infos)
     {
         std::vector<vk::DescriptorImageInfo> vkImageInfos;
@@ -226,6 +239,7 @@ namespace Cacao
         vkWriteDescriptorSet.pImageInfo = pImageInfoArray->data();
         m_pendingWrites.push_back(vkWriteDescriptorSet);
     }
+
     void VKDescriptorSet::WriteAccelerationStructures(const AccelerationStructureWriteInfos& infos)
     {
         std::vector<vk::AccelerationStructureKHR> vkASHandles;

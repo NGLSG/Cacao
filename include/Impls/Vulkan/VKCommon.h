@@ -1,5 +1,5 @@
-#ifndef CACAO_VKCONVERT_H
-#define CACAO_VKCONVERT_H
+#ifndef CACAO_VKCOMMON_H
+#define CACAO_VKCOMMON_H
 #include <vulkan/vulkan.hpp>
 #include "vk_mem_alloc.h"
 #ifdef _MSC_VER

@@ -9,6 +9,7 @@
 #include "Impls/Vulkan/VKPipelineLayout.h"
 #include "Impls/Vulkan/VKSampler.h"
 #include "Impls/Vulkan/VKDescriptorSet.h"
+
 namespace Cacao
 {
     namespace
@@ -17,11 +18,13 @@ namespace Cacao
         {
             return format == Format::D32F;
         }
+
         bool IsStencilFormat(Format format)
         {
             return format == Format::D24S8;
         }
     }
+
     vk::CommandBufferInheritanceRenderingInfo VKCommandBufferEncoder::ConvertRenderingInfo(const RenderingInfo& info)
     {
         vk::CommandBufferInheritanceRenderingInfo vkRenderingInfo{};
@@ -40,10 +43,12 @@ namespace Cacao
         }
         if (info.StencilAttachment && info.StencilAttachment->Texture)
         {
-            vkRenderingInfo.stencilAttachmentFormat = VKConverter::Convert(info.StencilAttachment->Texture->GetFormat());
+            vkRenderingInfo.stencilAttachmentFormat =
+                VKConverter::Convert(info.StencilAttachment->Texture->GetFormat());
         }
         return vkRenderingInfo;
     }
+
     vk::RenderingInfo VKCommandBufferEncoder::ConvertRenderingInfoBegin(const RenderingInfo& info)
     {
         vk::RenderingInfo vkRenderingInfo{};
@@ -172,11 +177,13 @@ namespace Cacao
         }
         return vkRenderingInfo;
     }
+
     Ref<VKCommandBufferEncoder> VKCommandBufferEncoder::Create(const Ref<Device>& device,
                                                                vk::CommandBuffer commandBuffer, CommandBufferType type)
     {
         return CreateRef<VKCommandBufferEncoder>(device, commandBuffer, type);
     }
+
     VKCommandBufferEncoder::VKCommandBufferEncoder(const Ref<Device>& device, vk::CommandBuffer commandBuffer,
                                                    CommandBufferType type) :
         m_commandBuffer(commandBuffer), m_type(type)
@@ -187,18 +194,22 @@ namespace Cacao
         }
         m_device = std::dynamic_pointer_cast<VKDevice>(device);
     }
+
     void VKCommandBufferEncoder::Free()
     {
         m_device->FreeCommandBuffer(shared_from_this());
     }
+
     void VKCommandBufferEncoder::Reset()
     {
         m_device->ResetCommandBuffer(shared_from_this());
     }
+
     void VKCommandBufferEncoder::ReturnToPool()
     {
         m_device->ReturnCommandBuffer(shared_from_this());
     }
+
     void VKCommandBufferEncoder::Begin(const CommandBufferBeginInfo& info)
     {
         vk::CommandBufferBeginInfo beginInfo{};
@@ -218,19 +229,23 @@ namespace Cacao
         }
         m_commandBuffer.begin(beginInfo);
     }
+
     void VKCommandBufferEncoder::End()
     {
         m_commandBuffer.end();
     }
+
     void VKCommandBufferEncoder::BeginRendering(const RenderingInfo& info)
     {
         vk::RenderingInfo renderInfo = ConvertRenderingInfoBegin(info);
         m_commandBuffer.beginRendering(renderInfo);
     }
+
     void VKCommandBufferEncoder::EndRendering()
     {
         m_commandBuffer.endRendering();
     }
+
     void VKCommandBufferEncoder::BindGraphicsPipeline(const Ref<GraphicsPipeline>& pipeline)
     {
         m_commandBuffer.bindPipeline(
@@ -238,6 +253,7 @@ namespace Cacao
             static_cast<VKGraphicsPipeline*>(pipeline.get())->GetHandle()
         );
     }
+
     void VKCommandBufferEncoder::BindComputePipeline(const Ref<ComputePipeline>& pipeline)
     {
         m_commandBuffer.bindPipeline(
@@ -245,6 +261,7 @@ namespace Cacao
             static_cast<VKComputePipeline*>(pipeline.get())->GetHandle()
         );
     }
+
     void VKCommandBufferEncoder::SetViewport(const Viewport& viewport)
     {
         m_commandBuffer.setViewport(0, vk::Viewport(
@@ -256,6 +273,7 @@ namespace Cacao
                                         viewport.MaxDepth
                                     ));
     }
+
     void VKCommandBufferEncoder::SetScissor(const Rect2D& scissor)
     {
         m_commandBuffer.setScissor(0, vk::Rect2D(
@@ -263,6 +281,7 @@ namespace Cacao
                                        {scissor.Width, scissor.Height}
                                    ));
     }
+
     void VKCommandBufferEncoder::BindVertexBuffer(uint32_t binding, const Ref<Buffer>& buffer,
                                                   uint64_t offset)
     {
@@ -270,6 +289,7 @@ namespace Cacao
                                           static_cast<VKBuffer*>(buffer.get())->GetHandle(),
                                           offset);
     }
+
     void VKCommandBufferEncoder::BindIndexBuffer(const Ref<Buffer>& buffer, uint64_t offset,
                                                  IndexType indexType)
     {
@@ -279,6 +299,7 @@ namespace Cacao
             VKConverter::Convert(indexType)
         );
     }
+
     void VKCommandBufferEncoder::BindDescriptorSets(const Ref<GraphicsPipeline>& pipeline,
                                                     uint32_t firstSet,
                                                     std::span<const Ref<DescriptorSet>>
@@ -303,6 +324,7 @@ namespace Cacao
             nullptr
         );
     }
+
     void VKCommandBufferEncoder::PushConstants(const Ref<GraphicsPipeline>& pipeline,
                                                ShaderStage stageFlags, uint32_t offset, uint32_t size,
                                                const void* data)
@@ -317,20 +339,24 @@ namespace Cacao
             data
         );
     }
+
     void VKCommandBufferEncoder::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
                                       uint32_t firstInstance)
     {
         m_commandBuffer.draw(vertexCount, instanceCount, firstVertex, firstInstance);
     }
+
     void VKCommandBufferEncoder::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
                                              int32_t vertexOffset, uint32_t firstInstance)
     {
         m_commandBuffer.drawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
+
     void VKCommandBufferEncoder::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
     {
         m_commandBuffer.dispatch(groupCountX, groupCountY, groupCountZ);
     }
+
     void VKCommandBufferEncoder::BindComputeDescriptorSets(const Ref<ComputePipeline>& pipeline,
                                                            uint32_t firstSet,
                                                            std::span<const Ref<DescriptorSet>> descriptorSets)
@@ -354,6 +380,7 @@ namespace Cacao
             nullptr
         );
     }
+
     void VKCommandBufferEncoder::ComputePushConstants(const Ref<ComputePipeline>& pipeline,
                                                       ShaderStage stageFlags, uint32_t offset, uint32_t size,
                                                       const void* data)
@@ -368,6 +395,7 @@ namespace Cacao
             data
         );
     }
+
     void VKCommandBufferEncoder::PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
                                                  std::span<const CMemoryBarrier> globalBarriers,
                                                  std::span<const BufferBarrier> bufferBarriers,
@@ -438,6 +466,7 @@ namespace Cacao
             m_cachedImageBarriers
         );
     }
+
     namespace
     {
         struct TransitionParams
@@ -449,68 +478,110 @@ namespace Cacao
             VkImageLayout oldLayout;
             VkImageLayout newLayout;
         };
+
         constexpr TransitionParams kImageTransitionLUT[] = {
-            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-             0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
-            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-             0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL},
-            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             0, VK_ACCESS_TRANSFER_WRITE_BIT,
-             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
-            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             0, VK_ACCESS_SHADER_READ_BIT,
-             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
-            {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-             0, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
-             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL},
-            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0,
-             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR},
-            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
-             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
-            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
-            {VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
-             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
-             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
-             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
-            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
-            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
-            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
-            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-             VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
-             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL},
-            {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-             0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-             VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
-            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
-             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
-            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
-            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
+            {
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                0, VK_ACCESS_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                0, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL
+            },
+            {
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            },
+            {
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL
+            },
+            {
+                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            },
+            {
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            },
         };
+
         struct BufferTransitionParams
         {
             VkPipelineStageFlags srcStage;
@@ -518,39 +589,74 @@ namespace Cacao
             VkAccessFlags srcAccess;
             VkAccessFlags dstAccess;
         };
+
         constexpr BufferTransitionParams kBufferTransitionLUT[] = {
-            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT},
-            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT},
-            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT},
-            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT},
-            {VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT},
-            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT},
-            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT},
-            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT},
+            {
+                VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_HOST_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_INDEX_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT
+            },
         };
+
         struct MemoryTransitionParams
         {
             VkPipelineStageFlags srcStage;
@@ -558,21 +664,40 @@ namespace Cacao
             VkAccessFlags srcAccess;
             VkAccessFlags dstAccess;
         };
+
         constexpr MemoryTransitionParams kMemoryTransitionLUT[] = {
-            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-             VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT},
-            {VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-             VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT},
-            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-             VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT},
+            {
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
+            },
+            {
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT
+            },
         };
     }
+
     void VKCommandBufferEncoder::TransitionImage(
         const Ref<Texture>& texture,
         ImageTransition transition,
@@ -604,6 +729,7 @@ namespace Cacao
             1, &barrier
         );
     }
+
     void VKCommandBufferEncoder::TransitionImageFast(
         VkImage image,
         ImageTransition transition,
@@ -639,6 +765,7 @@ namespace Cacao
             1, &barrier
         );
     }
+
     void VKCommandBufferEncoder::TransitionBuffer(
         const Ref<Buffer>& buffer,
         BufferTransition transition,
@@ -649,6 +776,7 @@ namespace Cacao
             static_cast<VKBuffer*>(buffer.get())->GetHandle(),
             transition, offset, size);
     }
+
     void VKCommandBufferEncoder::TransitionBufferFast(
         VkBuffer buffer,
         BufferTransition transition,
@@ -676,6 +804,7 @@ namespace Cacao
             0, nullptr
         );
     }
+
     void VKCommandBufferEncoder::MemoryBarrierFast(MemoryTransition transition)
     {
         const auto& params = kMemoryTransitionLUT[static_cast<uint8_t>(transition)];
@@ -694,10 +823,12 @@ namespace Cacao
             0, nullptr
         );
     }
+
     void VKCommandBufferEncoder::ExecuteNative(const std::function<void(void* nativeCommandBuffer)>& func)
     {
         func(&m_commandBuffer);
     }
+
     void VKCommandBufferEncoder::CopyBufferToImage(
         const Ref<Buffer>& srcBuffer,
         const Ref<Texture>& dstImage,
@@ -729,6 +860,24 @@ namespace Cacao
             VKFastConvert::ImageLayout(dstImageLayout),
             static_cast<uint32_t>(vkRegions.size()),
             vkRegions.data()
+        );
+    }
+
+    void VKCommandBufferEncoder::CopyBuffer(const Ref<Buffer>& srcBuffer, const Ref<Buffer>& dstBuffer,
+                                            uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
+    {
+        auto* vkSrcBuffer = static_cast<VKBuffer*>(srcBuffer.get());
+        auto* vkDstBuffer = static_cast<VKBuffer*>(dstBuffer.get());
+        VkBufferCopy copyRegion;
+        copyRegion.srcOffset = srcOffset;
+        copyRegion.dstOffset = dstOffset;
+        copyRegion.size = size;
+        vkCmdCopyBuffer(
+            m_commandBuffer,
+            vkSrcBuffer->GetHandle(),
+            vkDstBuffer->GetHandle(),
+            1,
+            &copyRegion
         );
     }
 }

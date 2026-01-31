@@ -28,13 +28,15 @@ struct VSOutput
 
 // 描述符绑定
 [[vk::binding(0, 0)]]
-StructuredBuffer<SpriteInstance> sprites;
+StructuredBuffer<SpriteInstance> sprites : register(t0);
 
+// Binding 1 -> t1
 [[vk::binding(1, 0)]]
-Texture2D spriteTexture;
+Texture2D spriteTexture : register(t1);
 
+// Binding 2 -> s2 (C++ DescriptorSetLayout 中 Sampler 绑定号为 2，对应 baseRegister 2)
 [[vk::binding(2, 0)]]
-SamplerState spriteSampler;
+SamplerState spriteSampler : register(s2);
 
 // 四边形顶点 (两个三角形)
 static const float2 quadPositions[6] =

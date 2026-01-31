@@ -32,7 +32,7 @@ namespace Cacao
         void Submit(std::span<const Ref<CommandBufferEncoder>> cmds, const Ref<Synchronization>& sync,
                     uint32_t frameIndex) override;
         void Submit(const Ref<CommandBufferEncoder>& cmd) override;
-        void WaitIdle() const override;
+        void WaitIdle() override;
     };
 }
 #endif 

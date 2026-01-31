@@ -20,7 +20,7 @@ namespace Cacao
             const Ref<Synchronization>& sync,
             uint32_t frameIndex) = 0;
         virtual void Submit(const Ref<CommandBufferEncoder>& cmd) = 0;
-        virtual void WaitIdle() const = 0;
+        virtual void WaitIdle() = 0;
     };
 } 
 #endif 

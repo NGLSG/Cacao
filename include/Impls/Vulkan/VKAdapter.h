@@ -20,14 +20,14 @@ namespace Cacao
         uint32_t GetTotalGPUMemory() const;
         vk::PhysicalDevice GetPhysicalDevice() const;
         Ref<VKInstance> m_instance;
-        Ref<VKInstance>& GetInstance() { return m_instance; }
+        const Ref<VKInstance>& GetInstance() { return m_instance; }
     public:
         VKAdapter(const Ref<Instance>& inst, const vk::PhysicalDevice& physicalDevice);
         static Ref<VKAdapter> Create(const Ref<Instance>& inst,const vk::PhysicalDevice& physicalDevice);
         AdapterProperties GetProperties() const override;
         AdapterType GetAdapterType() const override;
-        bool IsFeatureSupported(CacaoFeature feature) const override;
-        std::shared_ptr<Device> CreateDevice(const DeviceCreateInfo& info) override;
+        bool IsFeatureSupported(DeviceFeature feature) const override;
+        Ref<Device> CreateDevice(const DeviceCreateInfo& info) override;
         uint32_t FindQueueFamilyIndex(QueueType type) const override;
     };
 } 

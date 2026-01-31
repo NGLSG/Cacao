@@ -27,6 +27,7 @@ namespace Cacao
         uint32_t AcquireNextImageIndex(const Ref<Swapchain>& swapchain, uint32_t frameIndex) const override;
         uint32_t GetMaxFramesInFlight() const override;
         ~VKSynchronization () override;
+        void WaitIdle() const override;
     };
 } 
 #endif 

@@ -1,6 +1,7 @@
 #ifndef CACAO_CACAODESCRIPTORSET_H
 #define CACAO_CACAODESCRIPTORSET_H
 #include "Barrier.h"
+
 namespace Cacao
 {
     enum class DescriptorType;
@@ -10,60 +11,70 @@ namespace Cacao
     class Buffer;
     class DescriptorSetLayout;
     class DescriptorPool;
+
     struct BufferWriteInfo
     {
         uint32_t Binding = 0;
         Ref<Buffer> Buffer = nullptr;
         uint64_t Offset = 0;
-        uint64_t Range = UINT64_MAX;
+        uint64_t Stride = 0;
+        uint64_t Size = UINT64_MAX;
         DescriptorType Type;
         uint32_t ArrayElement = 0;
     };
+
     struct TextureWriteInfo
     {
         uint32_t Binding = 0;
         Ref<CacaoTextureView> TextureView = nullptr;
         ImageLayout Layout = ImageLayout::ShaderReadOnly;
         DescriptorType Type;
-        Ref<Sampler> Sampler = nullptr;  
+        Ref<Sampler> Sampler = nullptr;
         uint32_t ArrayElement = 0;
     };
+
     struct SamplerWriteInfo
     {
         uint32_t Binding = 0;
         Ref<Sampler> Sampler = nullptr;
         uint32_t ArrayElement = 0;
     };
+
     struct AccelerationStructureWriteInfo
     {
         uint32_t Binding = 0;
         const void* AccelerationStructureHandle = nullptr;
         DescriptorType Type;
     };
+
     struct BufferWriteInfos
     {
         uint32_t Binding = 0;
         std::vector<Ref<Buffer>> Buffers;
         std::vector<uint64_t> Offsets;
-        std::vector<uint64_t> Ranges;
+        std::vector<uint64_t> Strides;
+        std::vector<uint64_t> Sizes;
         DescriptorType Type;
         uint32_t ArrayElement = 0;
     };
+
     struct TextureWriteInfos
     {
         uint32_t Binding = 0;
         std::vector<Ref<CacaoTextureView>> TextureViews;
         std::vector<ImageLayout> Layouts;
         DescriptorType Type;
-        std::vector<Ref<Sampler>> Samplers;  
+        std::vector<Ref<Sampler>> Samplers;
         uint32_t ArrayElement = 0;
     };
+
     struct SamplerWriteInfos
     {
         uint32_t Binding = 0;
         std::vector<Ref<Sampler>> Samplers;
         uint32_t ArrayElement = 0;
     };
+
     struct AccelerationStructureWriteInfos
     {
         uint32_t Binding = 0;
@@ -71,6 +82,7 @@ namespace Cacao
         DescriptorType Type;
         uint32_t ArrayElement = 0;
     };
+
     class CACAO_API DescriptorSet : public std::enable_shared_from_this<DescriptorSet>
     {
     public:
