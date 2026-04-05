@@ -186,6 +186,8 @@ namespace Cacao
         {
             throw std::runtime_error("Failed to create Vulkan swapchain");
         }
+        printf("VK Swapchain: format=%d, colorSpace=%d\n",
+            (int)swapchainCreateInfo.imageFormat, (int)swapchainCreateInfo.imageColorSpace);
         m_images = pyDevice.getSwapchainImagesKHR(m_swapchain);
         for (const auto& image : m_images)
         {
@@ -203,18 +205,24 @@ namespace Cacao
     Result VKSwapchain::Present(const Ref<Queue>& queue,
                                 const Ref<Synchronization>& sync, uint32_t frameIndex)
     {
+        if (!m_hasAcquiredImage)
+        {
+            return Result::Error;
+        }
+
         vk::PresentInfoKHR present{};
-        auto vkContext = std::dynamic_pointer_cast<VKDevice>(m_device);
         auto syncContext = std::dynamic_pointer_cast<VKSynchronization>(sync);
         auto vkQueue = std::static_pointer_cast<VKQueue>(queue);
+        uint32_t imageIndex = m_currentImageIndex;
         present.waitSemaphoreCount = 1;
         present.pWaitSemaphores = &syncContext->GetRenderSemaphore(frameIndex);
         present.swapchainCount = 1;
         present.pSwapchains = &m_swapchain;
-        present.pImageIndices = &frameIndex;
+        present.pImageIndices = &imageIndex;
         try
         {
             auto res = vkQueue->GetVulkanQueue().presentKHR(present);
+            m_hasAcquiredImage = false;
             switch (res)
             {
             case vk::Result::eSuccess:
@@ -235,14 +243,17 @@ namespace Cacao
         }
         catch (vk::OutOfDateKHRError)
         {
+            m_hasAcquiredImage = false;
             return Result::OutOfDate;
         }
         catch (vk::DeviceLostError)
         {
+            m_hasAcquiredImage = false;
             return Result::DeviceLost;
         }
         catch (...)
         {
+            m_hasAcquiredImage = false;
             return Result::Error;
         }
     }
@@ -278,7 +289,7 @@ namespace Cacao
             usage |= TextureUsageFlags::Storage;
         }
         info.Usage = usage;
-        info.InitialLayout = ImageLayout::Undefined;
+        info.InitialState = ResourceState::Present;
         info.SampleCount = SampleCount::Count1;
         info.Name = "SwapchainBackBuffer";
         info.InitialData = nullptr;
@@ -302,7 +313,9 @@ namespace Cacao
         {
             return Result::Error;
         }
-        out = sync->AcquireNextImageIndex(shared_from_this(), idx);
+        out = static_cast<int>(sync->AcquireNextImageIndex(shared_from_this(), idx));
+        m_currentImageIndex = static_cast<uint32_t>(out);
+        m_hasAcquiredImage = true;
         return Result::Success;
     }
     VKSwapchain::~VKSwapchain()

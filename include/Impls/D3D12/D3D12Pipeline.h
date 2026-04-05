@@ -1,65 +1,51 @@
 #ifndef CACAO_D3D12PIPELINE_H
 #define CACAO_D3D12PIPELINE_H
-#ifdef WIN32
-#include "Pipeline.h"
 #include "D3D12Common.h"
+#include "Pipeline.h"
 
 namespace Cacao
 {
-    class D3D12Device;
-    class D3D12PipelineLayout;
-
-    class CACAO_API D3D12PipelineCache : public PipelineCache
+    class CACAO_API D3D12GraphicsPipeline final : public GraphicsPipeline
     {
-        Ref<D3D12Device> m_device;
-        ComPtr<ID3D12PipelineLibrary1> m_pipelineLibrary;
-        std::vector<uint8_t> m_cacheData;
-
-    public:
-        D3D12PipelineCache(const Ref<Device>& device, std::span<const uint8_t> initialData);
-        ~D3D12PipelineCache() override;
-        
-        std::vector<uint8_t> GetData() const override;
-        void Merge(std::span<const Ref<PipelineCache>> srcCaches) override;
-        
-        ID3D12PipelineLibrary1* GetLibrary() const { return m_pipelineLibrary.Get(); }
-        
-        static Ref<PipelineCache> Create(const Ref<Device>& device, std::span<const uint8_t> initialData);
-    };
-
-    class CACAO_API D3D12GraphicsPipeline : public GraphicsPipeline
-    {
+    private:
         ComPtr<ID3D12PipelineState> m_pipelineState;
-        Ref<D3D12Device> m_device;
-        GraphicsPipelineCreateInfo m_createInfo;
-        D3D12_PRIMITIVE_TOPOLOGY m_primitiveTopology;
+        ComPtr<ID3D12RootSignature> m_rootSignature;
+        Ref<Device> m_device;
+        Ref<PipelineLayout> m_layout;
+        D3D12_PRIMITIVE_TOPOLOGY m_topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        std::vector<VertexInputBinding> m_vertexBindings;
+
+        friend class D3D12CommandBufferEncoder;
+        ID3D12PipelineState* GetHandle() const { return m_pipelineState.Get(); }
+        ID3D12RootSignature* GetRootSignature() const { return m_rootSignature.Get(); }
+        D3D12_PRIMITIVE_TOPOLOGY GetTopology() const { return m_topology; }
+        uint32_t GetVertexStride(uint32_t binding) const {
+            for (auto& b : m_vertexBindings)
+                if (b.Binding == binding) return b.Stride;
+            return 0;
+        }
 
     public:
         D3D12GraphicsPipeline(const Ref<Device>& device, const GraphicsPipelineCreateInfo& info);
-        ~D3D12GraphicsPipeline() override;
-        
-        Ref<PipelineLayout> GetLayout() const override;
-        ID3D12PipelineState* GetPipelineState() const { return m_pipelineState.Get(); }
-        D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const { return m_primitiveTopology; }
-        
-        static Ref<GraphicsPipeline> Create(const Ref<Device>& device, const GraphicsPipelineCreateInfo& info);
+        Ref<PipelineLayout> GetLayout() const override { return m_layout; }
     };
 
-    class CACAO_API D3D12ComputePipeline : public ComputePipeline
+    class CACAO_API D3D12ComputePipeline final : public ComputePipeline
     {
+    private:
         ComPtr<ID3D12PipelineState> m_pipelineState;
-        Ref<D3D12Device> m_device;
-        ComputePipelineCreateInfo m_createInfo;
+        ComPtr<ID3D12RootSignature> m_rootSignature;
+        Ref<Device> m_device;
+        Ref<PipelineLayout> m_layout;
+
+        friend class D3D12CommandBufferEncoder;
+        ID3D12PipelineState* GetHandle() const { return m_pipelineState.Get(); }
+        ID3D12RootSignature* GetRootSignature() const { return m_rootSignature.Get(); }
 
     public:
         D3D12ComputePipeline(const Ref<Device>& device, const ComputePipelineCreateInfo& info);
-        ~D3D12ComputePipeline() override;
-        
-        Ref<PipelineLayout> GetLayout() const override;
-        ID3D12PipelineState* GetPipelineState() const { return m_pipelineState.Get(); }
-        
-        static Ref<ComputePipeline> Create(const Ref<Device>& device, const ComputePipelineCreateInfo& info);
+        Ref<PipelineLayout> GetLayout() const override { return m_layout; }
     };
 }
-#endif
+
 #endif

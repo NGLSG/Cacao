@@ -57,5 +57,20 @@ namespace Cacao
         virtual ~ComputePipeline() = default;
         virtual Ref<PipelineLayout> GetLayout() const = 0;
     };
+
+    struct RayTracingPipelineCreateInfo
+    {
+        std::vector<Ref<ShaderModule>> Shaders;
+        uint32_t MaxRecursionDepth = 1;
+        Ref<PipelineLayout> Layout;
+        Ref<PipelineCache> Cache = nullptr;
+    };
+
+    class CACAO_API RayTracingPipeline : public std::enable_shared_from_this<RayTracingPipeline>
+    {
+    public:
+        virtual ~RayTracingPipeline() = default;
+        virtual Ref<PipelineLayout> GetLayout() const = 0;
+    };
 }
 #endif 

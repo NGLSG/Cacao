@@ -10,6 +10,9 @@ namespace Cacao
     class GraphicsPipeline;
     class ComputePipeline;
     class DescriptorSet;
+    class QueryPool;
+    class AccelerationStructure;
+    class RayTracingPipeline;
     struct CMemoryBarrier;
 
     enum class ImageTransition : uint8_t
@@ -273,6 +276,9 @@ namespace Cacao
         virtual void MemoryBarrierFast(MemoryTransition transition) = 0;
         virtual void ExecuteNative(const std::function<void(void* nativeCommandBuffer)>& func) = 0;
         virtual void* GetNativeHandle() = 0;
+        virtual void CopyTexture2D(
+            const Ref<Texture>& src,
+            const Ref<Texture>& dst) = 0;
         virtual void CopyBufferToImage(
             const Ref<Buffer>& srcBuffer,
             const Ref<Texture>& dstImage,
@@ -285,6 +291,45 @@ namespace Cacao
                                 uint64_t srcOffset,
                                 uint64_t dstOffset,
                                 uint64_t size)=0;
+
+        virtual void ResolveTexture(
+            const Ref<Texture>& srcTexture,
+            const Ref<Texture>& dstTexture,
+            const ImageSubresourceLayers& srcSubresource = {},
+            const ImageSubresourceLayers& dstSubresource = {}) = 0;
+
+        virtual void DrawIndirect(const Ref<Buffer>& argBuffer, uint64_t offset,
+                                  uint32_t drawCount, uint32_t stride) = 0;
+        virtual void DrawIndexedIndirect(const Ref<Buffer>& argBuffer, uint64_t offset,
+                                         uint32_t drawCount, uint32_t stride) = 0;
+        virtual void DispatchIndirect(const Ref<Buffer>& argBuffer, uint64_t offset) = 0;
+
+        virtual void DrawIndirectCount(const Ref<Buffer>& argBuffer, uint64_t offset,
+                                       const Ref<Buffer>& countBuffer, uint64_t countOffset,
+                                       uint32_t maxDrawCount, uint32_t stride) {}
+        virtual void DrawIndexedIndirectCount(const Ref<Buffer>& argBuffer, uint64_t offset,
+                                              const Ref<Buffer>& countBuffer, uint64_t countOffset,
+                                              uint32_t maxDrawCount, uint32_t stride) {}
+        virtual void DispatchMesh(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) {}
+
+        virtual void BeginDebugLabel(const std::string& name,
+                                     float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f) {}
+        virtual void EndDebugLabel() {}
+        virtual void InsertDebugLabel(const std::string& name,
+                                      float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f) {}
+
+        virtual void BeginQuery(const Ref<QueryPool>& pool, uint32_t queryIndex) = 0;
+        virtual void EndQuery(const Ref<QueryPool>& pool, uint32_t queryIndex) = 0;
+        virtual void WriteTimestamp(const Ref<QueryPool>& pool, uint32_t queryIndex) = 0;
+        virtual void ResetQueryPool(const Ref<QueryPool>& pool, uint32_t first, uint32_t count) = 0;
+
+        virtual void TraceRays(const Ref<class ShaderBindingTable>& sbt,
+                               uint32_t width, uint32_t height, uint32_t depth = 1) {}
+        virtual void BuildAccelerationStructure(const Ref<AccelerationStructure>& accelStruct) {}
+        virtual void BindRayTracingPipeline(const Ref<RayTracingPipeline>& pipeline) {}
+        virtual void BindRayTracingDescriptorSets(
+            const Ref<RayTracingPipeline>& pipeline, uint32_t firstSet,
+            std::span<const Ref<DescriptorSet>> descriptorSets) {}
     };
 }
 #endif

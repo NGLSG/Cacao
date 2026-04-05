@@ -1,9 +1,7 @@
 #ifndef CACAO_CACAOSWAPCHAIN_H
 #define CACAO_CACAOSWAPCHAIN_H
-#include <complex.h>
 #include "Surface.h"
-#include "Impls/Vulkan/VKTexture.h"
-class CacaoTexture;
+#include "Texture.h"
 namespace Cacao
 {
     class Queue;

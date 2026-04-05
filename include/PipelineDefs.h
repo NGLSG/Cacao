@@ -28,6 +28,8 @@ namespace Cacao
         uint32_t Binding = 0;
         Format Format = Format::RGBA32_FLOAT;
         uint32_t Offset = 0;
+        std::string SemanticName = "TEXCOORD";
+        uint32_t SemanticIndex = UINT32_MAX;
     };
     struct VertexInputBinding
     {

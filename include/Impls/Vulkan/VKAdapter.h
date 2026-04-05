@@ -27,6 +27,7 @@ namespace Cacao
         AdapterProperties GetProperties() const override;
         AdapterType GetAdapterType() const override;
         bool IsFeatureSupported(DeviceFeature feature) const override;
+        DeviceLimits QueryLimits() const override;
         Ref<Device> CreateDevice(const DeviceCreateInfo& info) override;
         uint32_t FindQueueFamilyIndex(QueueType type) const override;
     };

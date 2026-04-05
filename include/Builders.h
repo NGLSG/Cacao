@@ -37,7 +37,8 @@ public:
     TextureBuilder& SetFormat(Format fmt) { m_info.Format = fmt; return *this; }
     TextureBuilder& SetUsage(TextureUsageFlags usage) { m_info.Usage = usage; return *this; }
     TextureBuilder& AddUsage(TextureUsageFlags usage) { m_info.Usage = m_info.Usage | usage; return *this; }
-    TextureBuilder& SetInitialLayout(ImageLayout layout) { m_info.InitialLayout = layout; return *this; }
+    TextureBuilder& SetInitialLayout(ResourceState state) { m_info.InitialState = state; return *this; }
+    TextureBuilder& SetInitialState(ResourceState state) { m_info.InitialState = state; return *this; }
     TextureBuilder& SetSampleCount(SampleCount count) { m_info.SampleCount = count; return *this; }
     TextureBuilder& SetName(const std::string& name) { m_info.Name = name; return *this; }
     TextureBuilder& SetInitialData(void* data) { m_info.InitialData = data; return *this; }
@@ -133,9 +134,10 @@ public:
         m_info.VertexBindings.push_back({binding, stride, rate});
         return *this;
     }
-    GraphicsPipelineBuilder& AddVertexAttribute(uint32_t location, uint32_t binding, Format format, uint32_t offset)
+    GraphicsPipelineBuilder& AddVertexAttribute(uint32_t location, uint32_t binding, Format format, uint32_t offset,
+        const std::string& semanticName = "TEXCOORD", uint32_t semanticIndex = UINT32_MAX)
     {
-        m_info.VertexAttributes.push_back({location, binding, format, offset});
+        m_info.VertexAttributes.push_back({location, binding, format, offset, semanticName, semanticIndex});
         return *this;
     }
     GraphicsPipelineBuilder& SetTopology(PrimitiveTopology topology)

@@ -82,6 +82,11 @@ namespace Cacao
             uint64_t offset = 0,
             uint64_t size = UINT64_MAX);
         void MemoryBarrierFast(MemoryTransition transition) override;
+        void ResolveTexture(
+            const Ref<Texture>& srcTexture,
+            const Ref<Texture>& dstTexture,
+            const ImageSubresourceLayers& srcSubresource = {},
+            const ImageSubresourceLayers& dstSubresource = {}) override;
         void ExecuteNative(const std::function<void(void* nativeCommandBuffer)>& func) override;
         void* GetNativeHandle() override { return &m_commandBuffer; }
         void CopyBufferToImage(
@@ -96,6 +101,38 @@ namespace Cacao
         const vk::CommandBuffer& GetHandle() { return m_commandBuffer; }
         void CopyBuffer(const Ref<Buffer>& srcBuffer, const Ref<Buffer>& dstBuffer, uint64_t srcOffset,
                         uint64_t dstOffset, uint64_t size) override;
+
+        void DrawIndirect(const Ref<Buffer>& argBuffer, uint64_t offset,
+                          uint32_t drawCount, uint32_t stride) override;
+        void DrawIndexedIndirect(const Ref<Buffer>& argBuffer, uint64_t offset,
+                                 uint32_t drawCount, uint32_t stride) override;
+        void DispatchIndirect(const Ref<Buffer>& argBuffer, uint64_t offset) override;
+        void DrawIndirectCount(const Ref<Buffer>& argBuffer, uint64_t offset,
+                               const Ref<Buffer>& countBuffer, uint64_t countOffset,
+                               uint32_t maxDrawCount, uint32_t stride) override;
+        void DrawIndexedIndirectCount(const Ref<Buffer>& argBuffer, uint64_t offset,
+                                      const Ref<Buffer>& countBuffer, uint64_t countOffset,
+                                      uint32_t maxDrawCount, uint32_t stride) override;
+        void DispatchMesh(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) override;
+
+        void BeginDebugLabel(const std::string& name, float r, float g, float b, float a) override;
+        void EndDebugLabel() override;
+        void InsertDebugLabel(const std::string& name, float r, float g, float b, float a) override;
+
+        void BeginQuery(const Ref<QueryPool>& pool, uint32_t queryIndex) override;
+        void EndQuery(const Ref<QueryPool>& pool, uint32_t queryIndex) override;
+        void WriteTimestamp(const Ref<QueryPool>& pool, uint32_t queryIndex) override;
+        void ResetQueryPool(const Ref<QueryPool>& pool, uint32_t first, uint32_t count) override;
+
+        void TraceRays(const Ref<ShaderBindingTable>& sbt, uint32_t w, uint32_t h, uint32_t d) override;
+        void BuildAccelerationStructure(const Ref<AccelerationStructure>& as) override;
+        void BindRayTracingPipeline(const Ref<RayTracingPipeline>& pipeline) override;
+        void BindRayTracingDescriptorSets(const Ref<RayTracingPipeline>& pipeline, uint32_t firstSet,
+                                          std::span<const Ref<DescriptorSet>> descriptorSets) override;
+
+        void CopyTexture2D(
+            const Ref<Texture>& src,
+            const Ref<Texture>& dst) override;
     };
 }
 #endif 

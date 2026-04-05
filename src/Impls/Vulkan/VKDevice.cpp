@@ -1,4 +1,6 @@
 #include <Impls/Vulkan/VKDevice.h>
+#include <algorithm>
+#include <cstring>
 #include "Buffer.h"
 #include "Impls/Vulkan/VKAdapter.h"
 #include "Impls/Vulkan/VKBuffer.h"
@@ -15,6 +17,9 @@
 #include "Impls/Vulkan/VKSwapchain.h"
 #include "Impls/Vulkan/VKSynchronization.h"
 #include "Impls/Vulkan/VKTexture.h"
+#include "Impls/Vulkan/VKAccelerationStructure.h"
+#include "Impls/Vulkan/VKRayTracingPipeline.h"
+#include "Impls/Vulkan/VKShaderBindingTable.h"
 
 namespace Cacao
 {
@@ -116,11 +121,15 @@ namespace Cacao
                 rtPipelineFeatures.rayTracingPipeline = VK_TRUE;
                 extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
                 extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+                features12.bufferDeviceAddress = VK_TRUE;
+                extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
                 break;
             case DeviceFeature::AccelerationStructure:
                 asFeatures.accelerationStructure = VK_TRUE;
                 extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
                 extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+                features12.bufferDeviceAddress = VK_TRUE;
+                extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
                 break;
             case DeviceFeature::VariableRateShading:
                 vrsFeatures.pipelineFragmentShadingRate = VK_TRUE;
@@ -136,6 +145,13 @@ namespace Cacao
                 break;
             }
         }
+        std::sort(extensions.begin(), extensions.end(), [](const char* a, const char* b) { return strcmp(a, b) < 0; });
+        extensions.erase(std::unique(extensions.begin(), extensions.end(), 
+            [](const char* a, const char* b) { return strcmp(a, b) == 0; }), extensions.end());
+
+        vk::PhysicalDeviceFeatures2 features2{};
+        features2.features = features10;
+
         void* pNextChain = nullptr;
         auto ChainStruct = [&](auto& structure)
         {
@@ -145,31 +161,24 @@ namespace Cacao
         ChainStruct(features11);
         ChainStruct(features12);
         ChainStruct(features13);
-        if (std::find(extensions.begin(), extensions.end(), VK_EXT_MESH_SHADER_EXTENSION_NAME) != extensions.end())
-        {
-            ChainStruct(meshFeatures);
-        }
-        if (std::find(extensions.begin(), extensions.end(), VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) != extensions.
-            end())
-        {
-            ChainStruct(rtPipelineFeatures);
-        }
-        if (std::find(extensions.begin(), extensions.end(), VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) != extensions.
-            end())
-        {
-            ChainStruct(asFeatures);
-        }
-        if (std::find(extensions.begin(), extensions.end(), VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME) != extensions.
-            end())
-        {
-            ChainStruct(vrsFeatures);
-        }
+        ChainStruct(meshFeatures);
+        ChainStruct(rtPipelineFeatures);
+        ChainStruct(asFeatures);
+        ChainStruct(vrsFeatures);
+        ChainStruct(features2);
+        printf("VK Device: extensions=%zu, asFeature=%d, rtFeature=%d, bufAddr=%d\n",
+            extensions.size(), 
+            (int)asFeatures.accelerationStructure,
+            (int)rtPipelineFeatures.rayTracingPipeline,
+            (int)features12.bufferDeviceAddress);
+        for (auto e : extensions) printf("  ext: %s\n", e);
+
         vk::DeviceCreateInfo deviceCreateInfo = vk::DeviceCreateInfo()
                                                 .setEnabledExtensionCount(static_cast<uint32_t>(extensions.size()))
                                                 .setPpEnabledExtensionNames(extensions.data())
                                                 .setQueueCreateInfoCount(static_cast<uint32_t>(queueCreateInfos.size()))
                                                 .setPQueueCreateInfos(queueCreateInfos.data())
-                                                .setPEnabledFeatures(&features10)
+                                                .setPEnabledFeatures(nullptr)
                                                 .setPNext(pNextChain);
         m_Device = pyDevice.createDevice(deviceCreateInfo);
         if (!m_Device)
@@ -184,6 +193,8 @@ namespace Cacao
         allocatorInfo.instance = std::dynamic_pointer_cast<VKAdapter>(m_parentAdapter)->GetInstance()->
             GetVulkanInstance();
         allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+        if (features12.bufferDeviceAddress)
+            allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         if (vmaCreateAllocator(&allocatorInfo, &m_allocator) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create VMA allocator");
@@ -376,6 +387,7 @@ namespace Cacao
 
     Ref<GraphicsPipeline> VKDevice::CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info)
     {
+        ValidateGraphicsPipeline(info);
         return VKGraphicsPipeline::Create(shared_from_this(), info);
     }
 
@@ -387,5 +399,26 @@ namespace Cacao
     Ref<Synchronization> VKDevice::CreateSynchronization(uint32_t maxFramesInFlight)
     {
         return VKSynchronization::Create(shared_from_this(), maxFramesInFlight);
+    }
+
+    Ref<AccelerationStructure> VKDevice::CreateAccelerationStructure(const AccelerationStructureCreateInfo& info)
+    {
+        return std::make_shared<VKAccelerationStructure>(shared_from_this(), info);
+    }
+
+    Ref<RayTracingPipeline> VKDevice::CreateRayTracingPipeline(const RayTracingPipelineCreateInfo& info)
+    {
+        return std::make_shared<VKRayTracingPipeline>(shared_from_this(), info);
+    }
+
+    Ref<ShaderBindingTable> VKDevice::CreateShaderBindingTable(
+        const Ref<RayTracingPipeline>& pipeline,
+        uint32_t rayGenCount, uint32_t missCount,
+        uint32_t hitGroupCount, uint32_t callableCount)
+    {
+        auto* vkPipeline = static_cast<VKRayTracingPipeline*>(pipeline.get());
+        return std::make_shared<VKShaderBindingTable>(
+            shared_from_this(), vkPipeline->GetHandle(),
+            rayGenCount, missCount, hitGroupCount, callableCount);
     }
 }

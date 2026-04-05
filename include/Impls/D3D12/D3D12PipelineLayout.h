@@ -1,36 +1,29 @@
 #ifndef CACAO_D3D12PIPELINELAYOUT_H
 #define CACAO_D3D12PIPELINELAYOUT_H
-#ifdef WIN32
 #include "D3D12Common.h"
 #include "PipelineLayout.h"
 
 namespace Cacao
 {
-    class D3D12Device;
-
     class CACAO_API D3D12PipelineLayout : public PipelineLayout
     {
+    private:
         ComPtr<ID3D12RootSignature> m_rootSignature;
-        Ref<D3D12Device> m_device;
+        Ref<Device> m_device;
         PipelineLayoutCreateInfo m_createInfo;
 
-        // 存储每个描述符集对应的根参数索引范围
-        std::vector<std::pair<uint32_t, uint32_t>> m_setRootParamRange;
-        // Push constants 根参数索引
-        uint32_t m_pushConstantsRootIndex = UINT32_MAX;
+        friend class D3D12GraphicsPipeline;
+        friend class D3D12ComputePipeline;
+        friend class D3D12CommandBufferEncoder;
+        friend class D3D12RayTracingPipeline;
 
     public:
-        ComPtr<ID3D12RootSignature>& GetRootSignature() { return m_rootSignature; }
-        const PipelineLayoutCreateInfo& GetCreateInfo() const { return m_createInfo; }
-
-        // 获取描述符集对应的根参数起始索引
-        uint32_t GetSetRootParamStartIndex(uint32_t setIndex) const;
-        uint32_t GetPushConstantsRootIndex() const { return m_pushConstantsRootIndex; }
-
-        static Ref<PipelineLayout> Create(const Ref<Device>& device, const PipelineLayoutCreateInfo& info);
         D3D12PipelineLayout(const Ref<Device>& device, const PipelineLayoutCreateInfo& info);
-        ~D3D12PipelineLayout() override;
+        ~D3D12PipelineLayout() = default;
+        static Ref<D3D12PipelineLayout> Create(const Ref<Device>& device, const PipelineLayoutCreateInfo& info);
+        ID3D12RootSignature* GetHandle() const { return m_rootSignature.Get(); }
+        const PipelineLayoutCreateInfo& GetCreateInfo() const { return m_createInfo; }
     };
 }
-#endif
+
 #endif

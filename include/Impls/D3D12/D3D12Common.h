@@ -1,143 +1,115 @@
 #ifndef CACAO_D3D12COMMON_H
 #define CACAO_D3D12COMMON_H
-#ifdef WIN32
-#include <dxgi1_6.h>
-#include <wrl.h>
-#include <d3d12.h>
-#include <unordered_map>
 
-#include "Core.h"
-#include "Adapter.h"
-#include "PipelineDefs.h"
-#include "Barrier.h"
-#include "Texture.h"
-#include "Sampler.h"
-#include "DescriptorSetLayout.h"
-#include "CommandBufferEncoder.h"
-#include "Buffer.h"
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <wrl/client.h>
 
 using Microsoft::WRL::ComPtr;
 
+#include <Core.h>
+#include <Barrier.h>
+#include <Buffer.h>
+#include <Adapter.h>
+
 namespace Cacao
 {
-    // 快速转换命名空间 - 使用查找表进行高性能转换
-    namespace D3D12FastConvert
+    inline DXGI_FORMAT ToDXGIFormat(Format format)
     {
-        // 资源状态查找表
-        inline constexpr D3D12_RESOURCE_STATES kResourceStateLUT[] = {
-            D3D12_RESOURCE_STATE_COMMON,                    // Undefined
-            D3D12_RESOURCE_STATE_COMMON,                    // General
-            D3D12_RESOURCE_STATE_RENDER_TARGET,             // ColorAttachment
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,               // DepthStencilAttachment
-            D3D12_RESOURCE_STATE_DEPTH_READ,                // DepthStencilReadOnly
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,     // ShaderReadOnly
-            D3D12_RESOURCE_STATE_COPY_SOURCE,               // TransferSrc
-            D3D12_RESOURCE_STATE_COPY_DEST,                 // TransferDst
-            D3D12_RESOURCE_STATE_PRESENT,                   // Present
-            D3D12_RESOURCE_STATE_COMMON,                    // Preinitialized
-        };
-
-        inline D3D12_RESOURCE_STATES ResourceState(Cacao::ImageLayout layout) noexcept
+        switch (format)
         {
-            return kResourceStateLUT[static_cast<uint32_t>(layout)];
+        case Format::R8_UNORM:            return DXGI_FORMAT_R8_UNORM;
+        case Format::RG8_UNORM:           return DXGI_FORMAT_R8G8_UNORM;
+        case Format::RGBA8_UNORM:         return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case Format::RGBA8_SRGB:          return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        case Format::BGRA8_UNORM:         return DXGI_FORMAT_B8G8R8A8_UNORM;
+        case Format::BGRA8_SRGB:          return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        case Format::R16_FLOAT:           return DXGI_FORMAT_R16_FLOAT;
+        case Format::RG16_FLOAT:          return DXGI_FORMAT_R16G16_FLOAT;
+        case Format::RGBA16_FLOAT:        return DXGI_FORMAT_R16G16B16A16_FLOAT;
+        case Format::R32_FLOAT:           return DXGI_FORMAT_R32_FLOAT;
+        case Format::RG32_FLOAT:          return DXGI_FORMAT_R32G32_FLOAT;
+        case Format::RGB32_FLOAT:         return DXGI_FORMAT_R32G32B32_FLOAT;
+        case Format::RGBA32_FLOAT:        return DXGI_FORMAT_R32G32B32A32_FLOAT;
+        case Format::R32_UINT:            return DXGI_FORMAT_R32_UINT;
+        case Format::R16_UINT:            return DXGI_FORMAT_R16_UINT;
+        case Format::D16_UNORM:           return DXGI_FORMAT_D16_UNORM;
+        case Format::D24_UNORM_S8_UINT:   return DXGI_FORMAT_D24_UNORM_S8_UINT;
+        case Format::D32_FLOAT:           return DXGI_FORMAT_D32_FLOAT;
+        case Format::D32_FLOAT_S8_UINT:   return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+        default:                          return DXGI_FORMAT_UNKNOWN;
         }
     }
 
-    class D3D12Converter
+    inline D3D12_RESOURCE_STATES ToD3D12ResourceState(ResourceState state)
     {
-        inline static const std::unordered_map<DeviceFeature, D3D12_FEATURE> m_featureMap =
+        switch (state)
         {
-            // 核心着色器阶段
-            {DeviceFeature::GeometryShader, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::TessellationShader, D3D12_FEATURE_D3D12_OPTIONS},
+        case ResourceState::Undefined:      return D3D12_RESOURCE_STATE_COMMON;
+        case ResourceState::General:        return D3D12_RESOURCE_STATE_COMMON;
+        case ResourceState::RenderTarget:   return D3D12_RESOURCE_STATE_RENDER_TARGET;
+        case ResourceState::DepthWrite:     return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        case ResourceState::DepthRead:      return D3D12_RESOURCE_STATE_DEPTH_READ;
+        case ResourceState::ShaderRead:     return D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE;
+        case ResourceState::CopySource:     return D3D12_RESOURCE_STATE_COPY_SOURCE;
+        case ResourceState::CopyDest:       return D3D12_RESOURCE_STATE_COPY_DEST;
+        case ResourceState::Present:        return D3D12_RESOURCE_STATE_PRESENT;
+        case ResourceState::UnorderedAccess:  return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        default:                            return D3D12_RESOURCE_STATE_COMMON;
+        }
+    }
 
-            // 基础光栅化/绘制
-            {DeviceFeature::MultiDrawIndirect, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::FillModeNonSolid, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::WideLines, D3D12_FEATURE_D3D12_OPTIONS}, // D3D12 不支持
+    inline D3D12_COMMAND_LIST_TYPE ToD3D12CommandListType(QueueType type)
+    {
+        switch (type)
+        {
+        case QueueType::Graphics: return D3D12_COMMAND_LIST_TYPE_DIRECT;
+        case QueueType::Compute:  return D3D12_COMMAND_LIST_TYPE_COMPUTE;
+        case QueueType::Transfer: return D3D12_COMMAND_LIST_TYPE_COPY;
+        default:                  return D3D12_COMMAND_LIST_TYPE_DIRECT;
+        }
+    }
 
-            // 采样/纹理格式
-            {DeviceFeature::SamplerAnisotropy, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::TextureCompressionBC, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::TextureCompressionASTC, D3D12_FEATURE_D3D12_OPTIONS8},
+    inline uint32_t D3D12GetFormatBytesPerPixel(DXGI_FORMAT format)
+    {
+        switch (format)
+        {
+        case DXGI_FORMAT_R8_UNORM:
+        case DXGI_FORMAT_R8_SNORM:       return 1;
+        case DXGI_FORMAT_R8G8_UNORM:
+        case DXGI_FORMAT_R16_FLOAT:
+        case DXGI_FORMAT_R16_UINT:       return 2;
+        case DXGI_FORMAT_R8G8B8A8_UNORM:
+        case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        case DXGI_FORMAT_B8G8R8A8_UNORM:
+        case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        case DXGI_FORMAT_R16G16_FLOAT:
+        case DXGI_FORMAT_R32_FLOAT:
+        case DXGI_FORMAT_R32_UINT:
+        case DXGI_FORMAT_D32_FLOAT:
+        case DXGI_FORMAT_D24_UNORM_S8_UINT: return 4;
+        case DXGI_FORMAT_R16G16B16A16_FLOAT: return 8;
+        case DXGI_FORMAT_R32G32_FLOAT:   return 8;
+        case DXGI_FORMAT_R32G32B32_FLOAT: return 12;
+        case DXGI_FORMAT_R32G32B32A32_FLOAT: return 16;
+        default:                         return 4;
+        }
+    }
 
-            // 描述符
-            {DeviceFeature::BindlessDescriptors, D3D12_FEATURE_D3D12_OPTIONS},
-
-            // GPU 寻址 (Win11+)
-            {DeviceFeature::BufferDeviceAddress, D3D12_FEATURE_D3D12_OPTIONS12},
-
-            // Mesh / Task 着色器
-            {DeviceFeature::MeshShader, D3D12_FEATURE_D3D12_OPTIONS7},
-            {DeviceFeature::TaskShader, D3D12_FEATURE_D3D12_OPTIONS7},
-
-            // 光线追踪
-            {DeviceFeature::RayTracingPipeline, D3D12_FEATURE_D3D12_OPTIONS5},
-            {DeviceFeature::RayTracingQuery, D3D12_FEATURE_D3D12_OPTIONS5},
-            {DeviceFeature::AccelerationStructure, D3D12_FEATURE_D3D12_OPTIONS5},
-
-            // 可变速率着色
-            {DeviceFeature::VariableRateShading, D3D12_FEATURE_D3D12_OPTIONS6},
-
-            // 仅 Vulkan 支持（D3D12 不支持）
-            {DeviceFeature::ConditionalRendering, D3D12_FEATURE_D3D12_OPTIONS},
-
-            // 着色器数值格式
-            {DeviceFeature::ShaderFloat64, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::ShaderInt16, D3D12_FEATURE_D3D12_OPTIONS},
-            {DeviceFeature::SubgroupOperations, D3D12_FEATURE_D3D12_OPTIONS1},
-        };
-
-    public:
-        // 特性转换
-        static D3D12_FEATURE Convert(DeviceFeature feature);
-
-        // 缓冲区相关
-        static D3D12_RESOURCE_FLAGS ConvertBufferUsage(BufferUsageFlags usage);
-        static D3D12_HEAP_TYPE Convert(BufferMemoryUsage usage);
-
-        // 格式转换
-        static DXGI_FORMAT Convert(Format format);
-
-        // 着色器阶段
-        static D3D12_SHADER_VISIBILITY ConvertShaderVisibility(ShaderStage stage);
-
-        // 图元拓扑
-        static D3D12_PRIMITIVE_TOPOLOGY Convert(PrimitiveTopology topology);
-        static D3D12_PRIMITIVE_TOPOLOGY_TYPE ConvertTopologyType(PrimitiveTopology topology);
-
-        // 光栅化状态
-        static D3D12_CULL_MODE Convert(CullMode cullMode);
-        static D3D12_FILL_MODE Convert(PolygonMode polygonMode);
-        static BOOL ConvertFrontFace(FrontFace frontFace);
-
-        // 混合状态
-        static D3D12_LOGIC_OP Convert(LogicOp logicOp);
-        static D3D12_BLEND Convert(BlendFactor blendFactor);
-        static D3D12_BLEND_OP Convert(BlendOp blendOp);
-        static UINT8 Convert(ColorComponentFlags flags);
-
-        // 深度模板状态
-        static D3D12_COMPARISON_FUNC Convert(CompareOp compareOp);
-        static D3D12_STENCIL_OP Convert(StencilOp stencilOp);
-
-        // 资源状态
-        static D3D12_RESOURCE_STATES Convert(ImageLayout layout);
-
-        // 采样器相关
-        static D3D12_FILTER ConvertFilter(Filter minFilter, Filter magFilter, SamplerMipmapMode mipmapMode, bool anisotropyEnable);
-        static D3D12_TEXTURE_ADDRESS_MODE Convert(SamplerAddressMode addressMode);
-        static D3D12_STATIC_BORDER_COLOR ConvertStaticBorderColor(BorderColor borderColor);
-
-        // 描述符类型
-        static D3D12_DESCRIPTOR_RANGE_TYPE Convert(DescriptorType type);
-
-        // 索引类型
-        static DXGI_FORMAT Convert(IndexType indexType);
-
-        // 多重采样
-        static UINT ConvertSampleCount(uint32_t sampleCount);
-    };
+    inline D3D12_HEAP_TYPE ToD3D12HeapType(BufferMemoryUsage usage)
+    {
+        switch (usage)
+        {
+        case BufferMemoryUsage::GpuOnly:   return D3D12_HEAP_TYPE_DEFAULT;
+        case BufferMemoryUsage::CpuToGpu:  return D3D12_HEAP_TYPE_UPLOAD;
+        case BufferMemoryUsage::GpuToCpu:  return D3D12_HEAP_TYPE_READBACK;
+        default:                           return D3D12_HEAP_TYPE_DEFAULT;
+        }
+    }
 }
-#endif
+
 #endif

@@ -61,6 +61,35 @@ namespace Cacao
         PipelineStatistics
     };
 
+    struct DeviceLimits
+    {
+        uint32_t maxTextureSize2D = 16384;
+        uint32_t maxTextureSize3D = 2048;
+        uint32_t maxTextureSizeCube = 16384;
+        uint32_t maxTextureArrayLayers = 2048;
+        uint32_t maxColorAttachments = 8;
+        uint32_t maxViewports = 16;
+        uint32_t maxComputeWorkGroupCountX = 65535;
+        uint32_t maxComputeWorkGroupCountY = 65535;
+        uint32_t maxComputeWorkGroupCountZ = 65535;
+        uint32_t maxComputeWorkGroupSizeX = 1024;
+        uint32_t maxComputeWorkGroupSizeY = 1024;
+        uint32_t maxComputeWorkGroupSizeZ = 64;
+        uint32_t maxComputeSharedMemorySize = 32768;
+        uint32_t maxBoundDescriptorSets = 8;
+        uint32_t maxPushConstantsSize = 128;
+        uint32_t maxUniformBufferSize = 65536;
+        uint32_t maxStorageBufferSize = 128 * 1024 * 1024;
+        uint32_t maxSamplerAnisotropy = 16;
+        uint32_t maxMSAASamples = 8;
+        uint64_t maxBufferSize = 256ULL * 1024 * 1024;
+        float maxLineWidth = 8.0f;
+        bool supportsAsyncCompute = false;
+        bool supportsTransferQueue = false;
+        bool supportsPipelineCacheSerialization = false;
+        bool supportsStorageBufferWriteInGraphics = false;
+    };
+
     class CACAO_API Adapter : public std::enable_shared_from_this<Adapter>
     {
     public :
@@ -68,6 +97,7 @@ namespace Cacao
         virtual AdapterProperties GetProperties() const = 0;
         virtual AdapterType GetAdapterType() const = 0;
         virtual bool IsFeatureSupported(DeviceFeature feature) const = 0;
+        virtual DeviceLimits QueryLimits() const { return {}; }
         virtual Ref<Device> CreateDevice(const DeviceCreateInfo& info) = 0;
         virtual uint32_t FindQueueFamilyIndex(QueueType type) const = 0;
     };

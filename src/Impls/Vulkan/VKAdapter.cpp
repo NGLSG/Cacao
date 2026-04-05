@@ -175,4 +175,45 @@ namespace Cacao
         }
         return UINT32_MAX;
     }
+
+    DeviceLimits VKAdapter::QueryLimits() const
+    {
+        auto props = m_physicalDevice.getProperties();
+        auto& vkLimits = props.limits;
+        DeviceLimits limits;
+        limits.maxTextureSize2D = vkLimits.maxImageDimension2D;
+        limits.maxTextureSize3D = vkLimits.maxImageDimension3D;
+        limits.maxTextureSizeCube = vkLimits.maxImageDimensionCube;
+        limits.maxTextureArrayLayers = vkLimits.maxImageArrayLayers;
+        limits.maxColorAttachments = vkLimits.maxColorAttachments;
+        limits.maxViewports = vkLimits.maxViewports;
+        limits.maxComputeWorkGroupCountX = vkLimits.maxComputeWorkGroupCount[0];
+        limits.maxComputeWorkGroupCountY = vkLimits.maxComputeWorkGroupCount[1];
+        limits.maxComputeWorkGroupCountZ = vkLimits.maxComputeWorkGroupCount[2];
+        limits.maxComputeWorkGroupSizeX = vkLimits.maxComputeWorkGroupSize[0];
+        limits.maxComputeWorkGroupSizeY = vkLimits.maxComputeWorkGroupSize[1];
+        limits.maxComputeWorkGroupSizeZ = vkLimits.maxComputeWorkGroupSize[2];
+        limits.maxComputeSharedMemorySize = vkLimits.maxComputeSharedMemorySize;
+        limits.maxBoundDescriptorSets = vkLimits.maxBoundDescriptorSets;
+        limits.maxPushConstantsSize = vkLimits.maxPushConstantsSize;
+        limits.maxUniformBufferSize = static_cast<uint32_t>(vkLimits.maxUniformBufferRange);
+        limits.maxStorageBufferSize = static_cast<uint32_t>(vkLimits.maxStorageBufferRange);
+        limits.maxSamplerAnisotropy = static_cast<uint32_t>(vkLimits.maxSamplerAnisotropy);
+        limits.maxLineWidth = vkLimits.lineWidthRange[1];
+
+        auto queueFamilies = m_physicalDevice.getQueueFamilyProperties();
+        for (auto& qf : queueFamilies)
+        {
+            if ((qf.queueFlags & vk::QueueFlagBits::eCompute) &&
+                !(qf.queueFlags & vk::QueueFlagBits::eGraphics))
+                limits.supportsAsyncCompute = true;
+            if ((qf.queueFlags & vk::QueueFlagBits::eTransfer) &&
+                !(qf.queueFlags & vk::QueueFlagBits::eGraphics) &&
+                !(qf.queueFlags & vk::QueueFlagBits::eCompute))
+                limits.supportsTransferQueue = true;
+        }
+        limits.supportsPipelineCacheSerialization = true;
+        limits.supportsStorageBufferWriteInGraphics = true;
+        return limits;
+    }
 } 

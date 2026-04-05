@@ -1,547 +1,677 @@
-#ifdef WIN32
 #include "Impls/D3D12/D3D12CommandBufferEncoder.h"
 #include "Impls/D3D12/D3D12Device.h"
-#include "Impls/D3D12/D3D12Pipeline.h"
-#include "Impls/D3D12/D3D12PipelineLayout.h"
 #include "Impls/D3D12/D3D12Buffer.h"
 #include "Impls/D3D12/D3D12Texture.h"
+#include "Impls/D3D12/D3D12Pipeline.h"
+#include "Impls/D3D12/D3D12QueryPool.h"
 #include "Impls/D3D12/D3D12DescriptorSet.h"
-#include "Impls/D3D12/D3D12DescriptorPool.h"
-#include <stdexcept>
+#include "Impls/D3D12/D3D12AccelerationStructure.h"
+#include "Impls/D3D12/D3D12ShaderBindingTable.h"
+#include "Impls/D3D12/D3D12PipelineLayout.h"
+#include "Impls/D3D12/D3D12RayTracingPipeline.h"
+#ifdef USE_PIX
+#include <pix3.h>
+#endif
 
 namespace Cacao
 {
-    // Helper function to get bytes per pixel for a format
-    static uint32_t GetFormatBytesPerPixel(Format format)
+    static inline UINT CalcSubresource(UINT mipSlice, UINT arraySlice, UINT planeSlice,
+                                       UINT mipLevels, UINT arraySize)
     {
-        switch (format)
-        {
-            // 1 byte per pixel
-            case Format::R8_UNORM:
-            case Format::R8_SNORM:
-            case Format::R8_UINT:
-            case Format::R8_SINT:
-                return 1;
-            
-            // 2 bytes per pixel
-            case Format::RG8_UNORM:
-            case Format::RG8_SNORM:
-            case Format::RG8_UINT:
-            case Format::RG8_SINT:
-            case Format::R16_UNORM:
-            case Format::R16_SNORM:
-            case Format::R16_UINT:
-            case Format::R16_SINT:
-            case Format::R16_FLOAT:
-            case Format::D16_UNORM:
-                return 2;
-            
-            // 4 bytes per pixel
-            case Format::RGBA8_UNORM:
-            case Format::RGBA8_SNORM:
-            case Format::RGBA8_UINT:
-            case Format::RGBA8_SINT:
-            case Format::RGBA8_SRGB:
-            case Format::BGRA8_UNORM:
-            case Format::BGRA8_SRGB:
-            case Format::RG16_UNORM:
-            case Format::RG16_SNORM:
-            case Format::RG16_UINT:
-            case Format::RG16_SINT:
-            case Format::RG16_FLOAT:
-            case Format::R32_UINT:
-            case Format::R32_SINT:
-            case Format::R32_FLOAT:
-            case Format::RGB10A2_UNORM:
-            case Format::RGB10A2_UINT:
-            case Format::RG11B10_FLOAT:
-            case Format::RGB9E5_FLOAT:
-            case Format::D32_FLOAT:
-            case Format::D24_UNORM_S8_UINT:
-                return 4;
-            
-            // 8 bytes per pixel
-            case Format::RGBA16_UNORM:
-            case Format::RGBA16_SNORM:
-            case Format::RGBA16_UINT:
-            case Format::RGBA16_SINT:
-            case Format::RGBA16_FLOAT:
-            case Format::RG32_UINT:
-            case Format::RG32_SINT:
-            case Format::RG32_FLOAT:
-            case Format::D32_FLOAT_S8_UINT:
-                return 8;
-            
-            // 12 bytes per pixel
-            case Format::RGB32_UINT:
-            case Format::RGB32_SINT:
-            case Format::RGB32_FLOAT:
-                return 12;
-            
-            // 16 bytes per pixel
-            case Format::RGBA32_UINT:
-            case Format::RGBA32_SINT:
-            case Format::RGBA32_FLOAT:
-                return 16;
-            
-            // BC compressed formats (block size)
-            case Format::BC1_RGB_UNORM:
-            case Format::BC1_RGB_SRGB:
-            case Format::BC1_RGBA_UNORM:
-            case Format::BC1_RGBA_SRGB:
-            case Format::BC4_UNORM:
-            case Format::BC4_SNORM:
-                return 8; // 8 bytes per 4x4 block
-            
-            case Format::BC2_UNORM:
-            case Format::BC2_SRGB:
-            case Format::BC3_UNORM:
-            case Format::BC3_SRGB:
-            case Format::BC5_UNORM:
-            case Format::BC5_SNORM:
-            case Format::BC6H_UFLOAT:
-            case Format::BC6H_SFLOAT:
-            case Format::BC7_UNORM:
-            case Format::BC7_SRGB:
-                return 16; // 16 bytes per 4x4 block
-            
-            default:
-                return 4; // Default to 4 bytes
-        }
+        return mipSlice + arraySlice * mipLevels + planeSlice * mipLevels * arraySize;
     }
+
     D3D12CommandBufferEncoder::D3D12CommandBufferEncoder(const Ref<Device>& device,
-                                                         ComPtr<ID3D12GraphicsCommandList> commandList,
-                                                         ID3D12CommandAllocator* allocator,
-                                                         CommandBufferType type)
-        : m_allocator(allocator), m_type(type)
+        CommandBufferType type, ComPtr<ID3D12CommandAllocator> allocator)
+        : m_device(device), m_type(type), m_allocator(std::move(allocator))
     {
-        if (!device)
-        {
-            throw std::runtime_error("D3D12CommandBufferEncoder created with null device");
-        }
-        m_device = std::dynamic_pointer_cast<D3D12Device>(device);
-
-        // 获取 ID3D12GraphicsCommandList7 接口
-        HRESULT hr = commandList->QueryInterface(IID_PPV_ARGS(&m_commandList));
-        if (FAILED(hr))
-        {
-            throw std::runtime_error("Failed to get ID3D12GraphicsCommandList7");
-        }
-    }
-
-    Ref<D3D12CommandBufferEncoder> D3D12CommandBufferEncoder::Create(const Ref<Device>& device,
-                                                                     ComPtr<ID3D12GraphicsCommandList> commandList,
-                                                                     ID3D12CommandAllocator* allocator,
-                                                                     CommandBufferType type)
-    {
-        return CreateRef<D3D12CommandBufferEncoder>(device, commandList, allocator, type);
-    }
-
-    void D3D12CommandBufferEncoder::Free()
-    {
-        m_device->FreeCommandBuffer(shared_from_this());
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(device);
+        d3dDevice->GetHandle()->CreateCommandList(
+            0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+            m_allocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList));
+        m_commandList->Close();
     }
 
     void D3D12CommandBufferEncoder::Reset()
     {
-        m_device->ResetCommandBuffer(shared_from_this());
-    }
-
-    void D3D12CommandBufferEncoder::ReturnToPool()
-    {
-        m_device->ReturnCommandBuffer(shared_from_this());
+        if (m_isRecording)
+        {
+            m_commandList->Close();
+            m_isRecording = false;
+        }
     }
 
     void D3D12CommandBufferEncoder::Begin(const CommandBufferBeginInfo& info)
     {
-        // D3D12 命令列表在创建时已经处于录制状态
-        // 如果需要重用，需要先 Reset
-        m_commandList->Reset(m_allocator, nullptr);
+        if (!m_isRecording)
+        {
+            m_allocator->Reset();
+            m_commandList->Reset(m_allocator.Get(), nullptr);
+            m_isRecording = true;
+        }
     }
 
     void D3D12CommandBufferEncoder::End()
     {
         m_commandList->Close();
+        m_isRecording = false;
     }
 
     void D3D12CommandBufferEncoder::BeginRendering(const RenderingInfo& info)
     {
-        m_isRendering = true;
-        m_currentRTVs.clear();
-        m_hasDSV = false;
-
-        // 收集渲染目标
-        for (const auto& colorAttachment : info.ColorAttachments)
+        std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvHandles;
+        for (auto& att : info.ColorAttachments)
         {
-            if (!colorAttachment.Texture) continue;
-
-            auto* d3d12Texture = static_cast<D3D12Texture*>(colorAttachment.Texture.get());
-            auto* view = static_cast<D3D12TextureView*>(d3d12Texture->GetDefaultView().get());
-
+            auto* d3dTex = static_cast<D3D12Texture*>(att.Texture.get());
+            d3dTex->CreateDefaultViewIfNeeded();
+            auto view = std::dynamic_pointer_cast<D3D12TextureView>(d3dTex->GetDefaultView());
             if (view && view->HasRTV())
             {
-                D3D12_CPU_DESCRIPTOR_HANDLE rtv = view->GetRTVHandle();
-                m_currentRTVs.push_back(rtv);
-
-                // 清除渲染目标
-                if (colorAttachment.LoadOp == AttachmentLoadOp::Clear)
-                {
-                    m_commandList->ClearRenderTargetView(rtv, colorAttachment.ClearValue.Color, 0, nullptr);
-                }
+                rtvHandles.push_back(view->GetRTVHandle());
+                if (att.LoadOp == AttachmentLoadOp::Clear)
+                    m_commandList->ClearRenderTargetView(view->GetRTVHandle(), att.ClearValue.Color, 0, nullptr);
             }
         }
-
-        // 处理深度附件
-        if (info.DepthAttachment && info.DepthAttachment->Texture)
+        D3D12_CPU_DESCRIPTOR_HANDLE* pDSV = nullptr;
+        D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle{};
+        if (info.DepthAttachment)
         {
-            auto* d3d12Texture = static_cast<D3D12Texture*>(info.DepthAttachment->Texture.get());
-            auto* view = static_cast<D3D12TextureView*>(d3d12Texture->GetDefaultView().get());
-
+            auto* depthTex = static_cast<D3D12Texture*>(info.DepthAttachment->Texture.get());
+            depthTex->CreateDefaultViewIfNeeded();
+            auto view = std::dynamic_pointer_cast<D3D12TextureView>(depthTex->GetDefaultView());
             if (view && view->HasDSV())
             {
-                m_currentDSV = view->GetDSVHandle();
-                m_hasDSV = true;
-
+                dsvHandle = view->GetDSVHandle();
+                pDSV = &dsvHandle;
                 if (info.DepthAttachment->LoadOp == AttachmentLoadOp::Clear)
-                {
-                    D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH;
-                    if (info.StencilAttachment) flags |= D3D12_CLEAR_FLAG_STENCIL;
-
-                    m_commandList->ClearDepthStencilView(
-                        m_currentDSV, flags,
+                    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
                         info.DepthAttachment->ClearDepthStencil.Depth,
-                        static_cast<UINT8>(info.DepthAttachment->ClearDepthStencil.Stencil),
-                        0, nullptr);
-                }
+                        info.DepthAttachment->ClearDepthStencil.Stencil, 0, nullptr);
             }
         }
-
-        // 设置渲染目标
         m_commandList->OMSetRenderTargets(
-            static_cast<UINT>(m_currentRTVs.size()),
-            m_currentRTVs.empty() ? nullptr : m_currentRTVs.data(),
-            FALSE,
-            m_hasDSV ? &m_currentDSV : nullptr);
+            static_cast<UINT>(rtvHandles.size()),
+            rtvHandles.empty() ? nullptr : rtvHandles.data(),
+            FALSE, pDSV);
     }
 
-    void D3D12CommandBufferEncoder::EndRendering()
-    {
-        m_isRendering = false;
-        m_currentRTVs.clear();
-        m_hasDSV = false;
-    }
+    void D3D12CommandBufferEncoder::EndRendering() { /* D3D12: no-op */ }
 
     void D3D12CommandBufferEncoder::BindGraphicsPipeline(const Ref<GraphicsPipeline>& pipeline)
     {
-        auto* d3d12Pipeline = static_cast<D3D12GraphicsPipeline*>(pipeline.get());
-        m_boundGraphicsPipeline = d3d12Pipeline;
-
-        m_commandList->SetPipelineState(d3d12Pipeline->GetPipelineState());
-        m_commandList->IASetPrimitiveTopology(d3d12Pipeline->GetPrimitiveTopology());
-
-        auto* layout = static_cast<D3D12PipelineLayout*>(d3d12Pipeline->GetLayout().get());
-        m_commandList->SetGraphicsRootSignature(layout->GetRootSignature().Get());
+        auto* d3dPipeline = static_cast<D3D12GraphicsPipeline*>(pipeline.get());
+        if (!d3dPipeline->GetHandle())
+        {
+            fprintf(stderr, "D3D12: BindGraphicsPipeline: PSO is null!\n");
+            return;
+        }
+        m_currentPipeline = d3dPipeline;
+        m_commandList->SetPipelineState(d3dPipeline->GetHandle());
+        if (d3dPipeline->GetRootSignature())
+            m_commandList->SetGraphicsRootSignature(d3dPipeline->GetRootSignature());
+        m_commandList->IASetPrimitiveTopology(d3dPipeline->GetTopology());
     }
 
     void D3D12CommandBufferEncoder::BindComputePipeline(const Ref<ComputePipeline>& pipeline)
     {
-        auto* d3d12Pipeline = static_cast<D3D12ComputePipeline*>(pipeline.get());
-        m_boundComputePipeline = d3d12Pipeline;
-
-        m_commandList->SetPipelineState(d3d12Pipeline->GetPipelineState());
-
-        auto* layout = static_cast<D3D12PipelineLayout*>(d3d12Pipeline->GetLayout().get());
-        m_commandList->SetComputeRootSignature(layout->GetRootSignature().Get());
+        auto* d3dPipeline = static_cast<D3D12ComputePipeline*>(pipeline.get());
+        m_commandList->SetPipelineState(d3dPipeline->GetHandle());
+        m_commandList->SetComputeRootSignature(d3dPipeline->GetRootSignature());
     }
 
     void D3D12CommandBufferEncoder::SetViewport(const Viewport& viewport)
     {
-        D3D12_VIEWPORT d3d12Viewport = {};
-        d3d12Viewport.TopLeftX = viewport.X;
-        d3d12Viewport.TopLeftY = viewport.Y;
-        d3d12Viewport.Width = viewport.Width;
-        d3d12Viewport.Height = viewport.Height;
-        d3d12Viewport.MinDepth = viewport.MinDepth;
-        d3d12Viewport.MaxDepth = viewport.MaxDepth;
-
-        m_commandList->RSSetViewports(1, &d3d12Viewport);
+        D3D12_VIEWPORT vp;
+        vp.TopLeftX = viewport.X;
+        vp.TopLeftY = viewport.Y + viewport.Height;
+        vp.Width = viewport.Width;
+        vp.Height = -viewport.Height;
+        vp.MinDepth = viewport.MinDepth;
+        vp.MaxDepth = viewport.MaxDepth;
+        m_commandList->RSSetViewports(1, &vp);
     }
 
     void D3D12CommandBufferEncoder::SetScissor(const Rect2D& scissor)
     {
-        D3D12_RECT d3d12Rect = {};
-        d3d12Rect.left = scissor.OffsetX;
-        d3d12Rect.top = scissor.OffsetY;
-        d3d12Rect.right = scissor.OffsetX + static_cast<LONG>(scissor.Width);
-        d3d12Rect.bottom = scissor.OffsetY + static_cast<LONG>(scissor.Height);
-
-        m_commandList->RSSetScissorRects(1, &d3d12Rect);
+        D3D12_RECT r{scissor.OffsetX, scissor.OffsetY,
+                     static_cast<LONG>(scissor.OffsetX + scissor.Width),
+                     static_cast<LONG>(scissor.OffsetY + scissor.Height)};
+        m_commandList->RSSetScissorRects(1, &r);
     }
 
     void D3D12CommandBufferEncoder::BindVertexBuffer(uint32_t binding, const Ref<Buffer>& buffer, uint64_t offset)
     {
-        auto* d3d12Buffer = static_cast<D3D12Buffer*>(buffer.get());
-
-        D3D12_VERTEX_BUFFER_VIEW vbv = {};
-        vbv.BufferLocation = d3d12Buffer->GetGPUVirtualAddress() + offset;
-        vbv.SizeInBytes = static_cast<UINT>(d3d12Buffer->GetSize() - offset);
-        vbv.StrideInBytes = 0; // 注意：如果使用 Vertex Buffer，这里必须设置正确的 Stride
-
+        auto* d3dBuf = static_cast<D3D12Buffer*>(buffer.get());
+        D3D12_VERTEX_BUFFER_VIEW vbv{};
+        vbv.BufferLocation = d3dBuf->GetHandle()->GetGPUVirtualAddress() + offset;
+        vbv.SizeInBytes = static_cast<UINT>(buffer->GetSize() - offset);
+        vbv.StrideInBytes = m_currentPipeline ? m_currentPipeline->GetVertexStride(binding) : 0;
         m_commandList->IASetVertexBuffers(binding, 1, &vbv);
     }
 
     void D3D12CommandBufferEncoder::BindIndexBuffer(const Ref<Buffer>& buffer, uint64_t offset, IndexType indexType)
     {
-        auto* d3d12Buffer = static_cast<D3D12Buffer*>(buffer.get());
-
-        D3D12_INDEX_BUFFER_VIEW ibv = {};
-        ibv.BufferLocation = d3d12Buffer->GetGPUVirtualAddress() + offset;
-        ibv.SizeInBytes = static_cast<UINT>(d3d12Buffer->GetSize() - offset);
-        ibv.Format = D3D12Converter::Convert(indexType);
-
+        auto* d3dBuf = static_cast<D3D12Buffer*>(buffer.get());
+        D3D12_INDEX_BUFFER_VIEW ibv{};
+        ibv.BufferLocation = d3dBuf->GetHandle()->GetGPUVirtualAddress() + offset;
+        ibv.SizeInBytes = static_cast<UINT>(buffer->GetSize() - offset);
+        ibv.Format = (indexType == IndexType::UInt16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
         m_commandList->IASetIndexBuffer(&ibv);
     }
 
-    void D3D12CommandBufferEncoder::BindDescriptorSets(const Ref<GraphicsPipeline>& pipeline, uint32_t firstSet,
-                                                       std::span<const Ref<DescriptorSet>> descriptorSets)
+    void D3D12CommandBufferEncoder::BindDescriptorSets(const Ref<GraphicsPipeline>& pipeline,
+        uint32_t firstSet, std::span<const Ref<DescriptorSet>> descriptorSets)
     {
-        auto* d3d12Pipeline = static_cast<D3D12GraphicsPipeline*>(pipeline.get());
-        auto* layout = static_cast<D3D12PipelineLayout*>(d3d12Pipeline->GetLayout().get());
+        if (descriptorSets.empty()) return;
 
-        // =========================================================================================
-        // [修复核心]：必须先设置 Descriptor Heaps，否则 SetGraphicsRootDescriptorTable 会导致 GPU 崩溃
-        // =========================================================================================
-
-        // D3D12 限制：每次 SetDescriptorHeaps 只能绑定一个 CBV/SRV/UAV 堆和一个 Sampler 堆
-        // 我们假设这一批 Sets 都来自同一个 Pool (通常架构如此设计)
-        if (!descriptorSets.empty())
+        auto d3dPipeline = std::dynamic_pointer_cast<D3D12GraphicsPipeline>(pipeline);
+        bool hasPushConstants = false;
+        if (auto layout = d3dPipeline->GetLayout())
         {
-            auto* firstD3D12Set = static_cast<D3D12DescriptorSet*>(descriptorSets[0].get());
+            if (auto d3dLayout = std::dynamic_pointer_cast<D3D12PipelineLayout>(layout))
+                hasPushConstants = !d3dLayout->GetCreateInfo().PushConstantRanges.empty();
+        }
+        uint32_t rootParamBase = hasPushConstants ? 1 : 0;
 
-            ID3D12DescriptorHeap* heaps[2] = {};
-            UINT heapCount = 0;
-
-            ID3D12DescriptorHeap* cbvSrvHeap = firstD3D12Set->GetCbvSrvUavHeap();
-            ID3D12DescriptorHeap* samplerHeap = firstD3D12Set->GetSamplerHeap();
-
-            if (cbvSrvHeap) heaps[heapCount++] = cbvSrvHeap;
-            if (samplerHeap) heaps[heapCount++] = samplerHeap;
-
-            if (heapCount > 0)
+        std::vector<ID3D12DescriptorHeap*> heaps;
+        for (auto& ds : descriptorSets)
+        {
+            auto d3dSet = std::dynamic_pointer_cast<D3D12DescriptorSet>(ds);
+            if (!d3dSet) continue;
+            if (d3dSet->GetCBVSRVUAVHeap())
             {
-                m_commandList->SetDescriptorHeaps(heapCount, heaps);
+                bool found = false;
+                for (auto h : heaps) if (h == d3dSet->GetCBVSRVUAVHeap()) { found = true; break; }
+                if (!found) heaps.push_back(d3dSet->GetCBVSRVUAVHeap());
+            }
+            if (d3dSet->GetSamplerHeap())
+            {
+                bool found = false;
+                for (auto h : heaps) if (h == d3dSet->GetSamplerHeap()) { found = true; break; }
+                if (!found) heaps.push_back(d3dSet->GetSamplerHeap());
             }
         }
+        if (!heaps.empty())
+            m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
 
-        // =========================================================================================
-
-        for (uint32_t i = 0; i < descriptorSets.size(); ++i)
+        uint32_t rootIdx = rootParamBase;
+        for (size_t i = 0; i < descriptorSets.size(); i++)
         {
-            auto* d3d12Set = static_cast<D3D12DescriptorSet*>(descriptorSets[i].get());
+            auto d3dSet = std::dynamic_pointer_cast<D3D12DescriptorSet>(descriptorSets[i]);
+            if (!d3dSet) continue;
 
-            // 获取该 set 对应的 root parameter 起始索引
-            uint32_t rootParamIndex = layout->GetSetRootParamStartIndex(firstSet + i);
-
-            // 绑定 CBV/SRV/UAV 描述符表
-            D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvUavHandle = d3d12Set->GetCbvSrvUavGpuHandle();
-            if (cbvSrvUavHandle.ptr != 0)
+            if (d3dSet->HasCBVSRVUAV())
             {
-                // 这里就是之前崩溃的地方，现在因为 SetDescriptorHeaps 已调用，应该安全了
-                m_commandList->SetGraphicsRootDescriptorTable(rootParamIndex, cbvSrvUavHandle);
-                rootParamIndex++;
+                m_commandList->SetGraphicsRootDescriptorTable(rootIdx, d3dSet->GetCBVSRVUAVGPUHandle());
+                rootIdx++;
             }
-
-            // 绑定 Sampler 描述符表
-            D3D12_GPU_DESCRIPTOR_HANDLE samplerHandle = d3d12Set->GetSamplerGpuHandle();
-            if (samplerHandle.ptr != 0)
+            if (d3dSet->HasSamplers())
             {
-                m_commandList->SetGraphicsRootDescriptorTable(rootParamIndex, samplerHandle);
+                m_commandList->SetGraphicsRootDescriptorTable(rootIdx, d3dSet->GetSamplerGPUHandle());
+                rootIdx++;
             }
         }
     }
 
-    void D3D12CommandBufferEncoder::PushConstants(const Ref<GraphicsPipeline>& pipeline, ShaderStage stageFlags,
-                                                  uint32_t offset, uint32_t size, const void* data)
+    void D3D12CommandBufferEncoder::PushConstants(const Ref<GraphicsPipeline>& pipeline,
+        ShaderStage stageFlags, uint32_t offset, uint32_t size, const void* data)
     {
-        auto* layout = static_cast<D3D12PipelineLayout*>(pipeline->GetLayout().get());
-        uint32_t rootIndex = layout->GetPushConstantsRootIndex();
-
-        if (rootIndex != UINT32_MAX)
-        {
-            m_commandList->SetGraphicsRoot32BitConstants(
-                rootIndex, size / 4, data, offset / 4);
-        }
+        m_commandList->SetGraphicsRoot32BitConstants(0, size / 4, data, offset / 4);
     }
 
     void D3D12CommandBufferEncoder::Draw(uint32_t vertexCount, uint32_t instanceCount,
-                                         uint32_t firstVertex, uint32_t firstInstance)
+        uint32_t firstVertex, uint32_t firstInstance)
     {
         m_commandList->DrawInstanced(vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
     void D3D12CommandBufferEncoder::DrawIndexed(uint32_t indexCount, uint32_t instanceCount,
-                                                uint32_t firstIndex, int32_t vertexOffset,
-                                                uint32_t firstInstance)
+        uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
     {
         m_commandList->DrawIndexedInstanced(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
-    void D3D12CommandBufferEncoder::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+    void D3D12CommandBufferEncoder::Dispatch(uint32_t x, uint32_t y, uint32_t z)
     {
-        m_commandList->Dispatch(groupCountX, groupCountY, groupCountZ);
+        m_commandList->Dispatch(x, y, z);
     }
 
-    void D3D12CommandBufferEncoder::BindComputeDescriptorSets(const Ref<ComputePipeline>& pipeline, uint32_t firstSet,
-                                                              std::span<const Ref<DescriptorSet>> descriptorSets)
+    void D3D12CommandBufferEncoder::BindComputeDescriptorSets(const Ref<ComputePipeline>& pipeline,
+        uint32_t firstSet, std::span<const Ref<DescriptorSet>> descriptorSets)
     {
-        auto* d3d12Pipeline = static_cast<D3D12ComputePipeline*>(pipeline.get());
-        auto* layout = static_cast<D3D12PipelineLayout*>(d3d12Pipeline->GetLayout().get());
+        if (descriptorSets.empty()) return;
 
-        // =========================================================================================
-        // [修复] 必须先设置 Descriptor Heaps，否则 SetComputeRootDescriptorTable 会导致 GPU 崩溃
-        // =========================================================================================
-        if (!descriptorSets.empty())
+        auto d3dPipeline = std::dynamic_pointer_cast<D3D12ComputePipeline>(pipeline);
+        bool hasPushConstants = false;
+        if (auto layout = d3dPipeline->GetLayout())
         {
-            auto* firstD3D12Set = static_cast<D3D12DescriptorSet*>(descriptorSets[0].get());
-
-            ID3D12DescriptorHeap* heaps[2] = {};
-            UINT heapCount = 0;
-
-            ID3D12DescriptorHeap* cbvSrvHeap = firstD3D12Set->GetCbvSrvUavHeap();
-            ID3D12DescriptorHeap* samplerHeap = firstD3D12Set->GetSamplerHeap();
-
-            if (cbvSrvHeap) heaps[heapCount++] = cbvSrvHeap;
-            if (samplerHeap) heaps[heapCount++] = samplerHeap;
-
-            if (heapCount > 0)
-            {
-                m_commandList->SetDescriptorHeaps(heapCount, heaps);
-            }
+            if (auto d3dLayout = std::dynamic_pointer_cast<D3D12PipelineLayout>(layout))
+                hasPushConstants = !d3dLayout->GetCreateInfo().PushConstantRanges.empty();
         }
-        // =========================================================================================
+        uint32_t rootParamBase = hasPushConstants ? 1 : 0;
 
-        for (uint32_t i = 0; i < descriptorSets.size(); ++i)
+        std::vector<ID3D12DescriptorHeap*> heaps;
+        for (auto& ds : descriptorSets)
         {
-            auto* d3d12Set = static_cast<D3D12DescriptorSet*>(descriptorSets[i].get());
+            auto* d3dSet = static_cast<D3D12DescriptorSet*>(ds.get());
+            if (d3dSet->HasCBVSRVUAV() && d3dSet->GetCBVSRVUAVHeap())
+                heaps.push_back(d3dSet->GetCBVSRVUAVHeap());
+            if (d3dSet->HasSamplers() && d3dSet->GetSamplerHeap())
+                heaps.push_back(d3dSet->GetSamplerHeap());
+        }
+        if (!heaps.empty())
+            m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
 
-            // 获取该 set 对应的 root parameter 起始索引
-            uint32_t rootParamIndex = layout->GetSetRootParamStartIndex(firstSet + i);
-
-            // 绑定 CBV/SRV/UAV 描述符表
-            D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvUavHandle = d3d12Set->GetCbvSrvUavGpuHandle();
-            if (cbvSrvUavHandle.ptr != 0)
+        uint32_t rootIdx = rootParamBase;
+        for (auto& ds : descriptorSets)
+        {
+            auto* d3dSet = static_cast<D3D12DescriptorSet*>(ds.get());
+            if (d3dSet->HasCBVSRVUAV())
             {
-                m_commandList->SetComputeRootDescriptorTable(rootParamIndex, cbvSrvUavHandle);
-                rootParamIndex++;
+                m_commandList->SetComputeRootDescriptorTable(rootIdx, d3dSet->GetCBVSRVUAVGPUHandle());
+                rootIdx++;
             }
-
-            // 绑定 Sampler 描述符表
-            D3D12_GPU_DESCRIPTOR_HANDLE samplerHandle = d3d12Set->GetSamplerGpuHandle();
-            if (samplerHandle.ptr != 0)
+            if (d3dSet->HasSamplers())
             {
-                m_commandList->SetComputeRootDescriptorTable(rootParamIndex, samplerHandle);
+                m_commandList->SetComputeRootDescriptorTable(rootIdx, d3dSet->GetSamplerGPUHandle());
+                rootIdx++;
             }
         }
     }
 
-    void D3D12CommandBufferEncoder::ComputePushConstants(const Ref<ComputePipeline>& pipeline, ShaderStage stageFlags,
-                                                         uint32_t offset, uint32_t size, const void* data)
+    void D3D12CommandBufferEncoder::ComputePushConstants(const Ref<ComputePipeline>& pipeline,
+        ShaderStage stageFlags, uint32_t offset, uint32_t size, const void* data)
     {
-        auto* layout = static_cast<D3D12PipelineLayout*>(pipeline->GetLayout().get());
-        uint32_t rootIndex = layout->GetPushConstantsRootIndex();
-
-        if (rootIndex != UINT32_MAX)
-        {
-            m_commandList->SetComputeRoot32BitConstants(rootIndex, size / 4, data, offset / 4);
-        }
+        m_commandList->SetComputeRoot32BitConstants(0, size / 4, data, offset / 4);
     }
 
-    void D3D12CommandBufferEncoder::PipelineBarrier(PipelineStage srcStage, PipelineStage dstStage,
-                                                    std::span<const CMemoryBarrier> globalBarriers,
-                                                    std::span<const BufferBarrier> bufferBarriers,
-                                                    std::span<const TextureBarrier> textureBarriers)
+    void D3D12CommandBufferEncoder::ResolveTexture(const Ref<Texture>& srcTexture,
+        const Ref<Texture>& dstTexture, const ImageSubresourceLayers& srcSub,
+        const ImageSubresourceLayers& dstSub)
+    {
+        auto* src = static_cast<D3D12Texture*>(srcTexture.get());
+        auto* dst = static_cast<D3D12Texture*>(dstTexture.get());
+        UINT srcSubresource = srcSub.MipLevel + srcSub.BaseArrayLayer * srcTexture->GetMipLevels();
+        UINT dstSubresource = dstSub.MipLevel + dstSub.BaseArrayLayer * dstTexture->GetMipLevels();
+        m_commandList->ResolveSubresource(dst->GetHandle(), dstSubresource,
+                                           src->GetHandle(), srcSubresource,
+                                           ToDXGIFormat(srcTexture->GetFormat()));
+    }
+
+    void D3D12CommandBufferEncoder::PipelineBarrier(SyncScope srcStage, SyncScope dstStage,
+        std::span<const CMemoryBarrier> globalBarriers,
+        std::span<const BufferBarrier> bufferBarriers,
+        std::span<const TextureBarrier> textureBarriers)
     {
         std::vector<D3D12_RESOURCE_BARRIER> barriers;
+        barriers.reserve(textureBarriers.size() + bufferBarriers.size());
 
-        for (const auto& texBarrier : textureBarriers)
+        for (auto& tb : textureBarriers)
         {
-            auto* d3d12Texture = static_cast<D3D12Texture*>(texBarrier.Texture.get());
-
-            D3D12_RESOURCE_BARRIER barrier = {};
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Transition.pResource = d3d12Texture->GetResource();
-            barrier.Transition.StateBefore = d3d12Texture->GetCurrentState();
-            barrier.Transition.StateAfter = D3D12Converter::Convert(texBarrier.NewLayout);
-            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
-            if (barrier.Transition.StateBefore != barrier.Transition.StateAfter)
-            {
-                barriers.push_back(barrier);
-                d3d12Texture->SetCurrentState(barrier.Transition.StateAfter);
-            }
+            auto* d3dTex = static_cast<D3D12Texture*>(tb.Texture.get());
+            D3D12_RESOURCE_BARRIER b{};
+            b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            b.Transition.pResource = d3dTex->GetHandle();
+            b.Transition.StateBefore = ToD3D12ResourceState(tb.OldState);
+            b.Transition.StateAfter = ToD3D12ResourceState(tb.NewState);
+            b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barriers.push_back(b);
+            d3dTex->SetCurrentState(tb.NewState);
         }
 
         if (!barriers.empty())
-        {
             m_commandList->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
-        }
     }
 
-    void D3D12CommandBufferEncoder::TransitionImage(const Ref<Texture>& texture, ImageTransition transition,
-                                                    const ImageSubresourceRange& range)
+    void D3D12CommandBufferEncoder::TransitionImage(const Ref<Texture>& texture,
+        ImageTransition transition, const ImageSubresourceRange& range)
     {
-        auto* d3d12Texture = static_cast<D3D12Texture*>(texture.get());
-        D3D12_RESOURCE_STATES newState = D3D12_RESOURCE_STATE_COMMON;
+        auto* d3dTex = static_cast<D3D12Texture*>(texture.get());
+        ResourceState oldState = d3dTex->GetCurrentState();
+        ResourceState newState = oldState;
 
         switch (transition)
         {
         case ImageTransition::UndefinedToColorAttachment:
+        case ImageTransition::ShaderReadToColorAttachment:
         case ImageTransition::PresentToColorAttachment:
-            newState = D3D12_RESOURCE_STATE_RENDER_TARGET;
-            break;
-        case ImageTransition::ColorAttachmentToPresent:
-            newState = D3D12_RESOURCE_STATE_PRESENT;
-            break;
-        case ImageTransition::UndefinedToShaderRead:
-        case ImageTransition::ColorAttachmentToShaderRead:
-        case ImageTransition::TransferDstToShaderRead:
-            newState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            break;
+        case ImageTransition::TransferDstToColorAttachment:
+        case ImageTransition::GeneralToColorAttachment:
+            newState = ResourceState::RenderTarget; break;
+        case ImageTransition::UndefinedToDepthAttachment:
+            newState = ResourceState::DepthWrite; break;
         case ImageTransition::UndefinedToTransferDst:
         case ImageTransition::ShaderReadToTransferDst:
-            newState = D3D12_RESOURCE_STATE_COPY_DEST;
-            break;
+        case ImageTransition::GeneralToTransferDst:
+            newState = ResourceState::CopyDest; break;
+        case ImageTransition::UndefinedToShaderRead:
+        case ImageTransition::ColorAttachmentToShaderRead:
+        case ImageTransition::DepthAttachmentToShaderRead:
+        case ImageTransition::TransferDstToShaderRead:
+        case ImageTransition::TransferSrcToShaderRead:
+        case ImageTransition::GeneralToShaderRead:
+            newState = ResourceState::ShaderRead; break;
+        case ImageTransition::ColorAttachmentToPresent:
+            newState = ResourceState::Present; break;
         case ImageTransition::ColorAttachmentToTransferSrc:
         case ImageTransition::ShaderReadToTransferSrc:
-            newState = D3D12_RESOURCE_STATE_COPY_SOURCE;
-            break;
-        case ImageTransition::UndefinedToDepthAttachment:
-            newState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-            break;
-        default:
-            newState = D3D12_RESOURCE_STATE_COMMON;
-            break;
+            newState = ResourceState::CopySource; break;
+        case ImageTransition::UndefinedToGeneral:
+        case ImageTransition::ShaderReadToGeneral:
+            newState = ResourceState::General; break;
+        default: break;
         }
 
-        D3D12_RESOURCE_STATES currentState = d3d12Texture->GetCurrentState();
-        if (currentState != newState)
-        {
-            D3D12_RESOURCE_BARRIER barrier = {};
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Transition.pResource = d3d12Texture->GetResource();
-            barrier.Transition.StateBefore = currentState;
-            barrier.Transition.StateAfter = newState;
-            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        if (oldState == newState) return;
 
-            m_commandList->ResourceBarrier(1, &barrier);
-            d3d12Texture->SetCurrentState(newState);
+        D3D12_RESOURCE_BARRIER barrier{};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource = d3dTex->GetHandle();
+        barrier.Transition.StateBefore = ToD3D12ResourceState(oldState);
+        barrier.Transition.StateAfter = ToD3D12ResourceState(newState);
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        m_commandList->ResourceBarrier(1, &barrier);
+        d3dTex->SetCurrentState(newState);
+    }
+
+    void D3D12CommandBufferEncoder::TransitionBuffer(const Ref<Buffer>& buffer,
+        BufferTransition transition, uint64_t offset, uint64_t size)
+    {
+        // D3D12 buffer transitions are handled via resource barriers
+        // Most buffer states in D3D12 don't require explicit transitions when using upload/readback heaps
+    }
+
+    void D3D12CommandBufferEncoder::ExecuteNative(const std::function<void(void*)>& func)
+    {
+        func(m_commandList.Get());
+    }
+
+    void* D3D12CommandBufferEncoder::GetNativeHandle() { return m_commandList.Get(); }
+
+    void D3D12CommandBufferEncoder::CopyTexture2D(
+        const Ref<Texture>& src, const Ref<Texture>& dst)
+    {
+        auto* d3dSrc = static_cast<D3D12Texture*>(src.get());
+        auto* d3dDst = static_cast<D3D12Texture*>(dst.get());
+        m_commandList->CopyResource(d3dDst->GetHandle(), d3dSrc->GetHandle());
+    }
+
+    void D3D12CommandBufferEncoder::CopyBufferToImage(const Ref<Buffer>& srcBuffer,
+        const Ref<Texture>& dstImage, ImageLayout dstImageLayout,
+        std::span<const BufferImageCopy> regions)
+    {
+        auto* d3dSrc = static_cast<D3D12Buffer*>(srcBuffer.get());
+        auto* d3dDst = static_cast<D3D12Texture*>(dstImage.get());
+
+        for (auto& region : regions)
+        {
+            D3D12_TEXTURE_COPY_LOCATION dst{};
+            dst.pResource = d3dDst->GetHandle();
+            dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            dst.SubresourceIndex = CalcSubresource(
+                region.ImageSubresource.MipLevel,
+                region.ImageSubresource.BaseArrayLayer,
+                0, dstImage->GetMipLevels(), dstImage->GetArrayLayers());
+
+            D3D12_TEXTURE_COPY_LOCATION src{};
+            src.pResource = d3dSrc->GetHandle();
+            src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            src.PlacedFootprint.Offset = region.BufferOffset;
+            src.PlacedFootprint.Footprint.Format = ToDXGIFormat(dstImage->GetFormat());
+            src.PlacedFootprint.Footprint.Width = region.ImageExtentWidth;
+            src.PlacedFootprint.Footprint.Height = region.ImageExtentHeight;
+            src.PlacedFootprint.Footprint.Depth = region.ImageExtentDepth;
+            uint32_t bpp = D3D12GetFormatBytesPerPixel(src.PlacedFootprint.Footprint.Format);
+            uint32_t naturalPitch = region.ImageExtentWidth * bpp;
+            uint32_t rowPitchBytes = region.BufferRowLength > 0
+                ? (region.BufferRowLength * bpp)
+                : naturalPitch;
+            src.PlacedFootprint.Footprint.RowPitch = (rowPitchBytes + 255) & ~255;
+
+            D3D12_BOX box{};
+            box.left = 0; box.top = 0; box.front = 0;
+            box.right = region.ImageExtentWidth;
+            box.bottom = region.ImageExtentHeight;
+            box.back = region.ImageExtentDepth;
+
+            m_commandList->CopyTextureRegion(&dst,
+                region.ImageOffsetX, region.ImageOffsetY, region.ImageOffsetZ,
+                &src, &box);
         }
     }
 
-    void D3D12CommandBufferEncoder::TransitionBuffer(const Ref<Buffer>& buffer, BufferTransition transition,
-                                                     uint64_t offset, uint64_t size)
+    void D3D12CommandBufferEncoder::CopyBuffer(const Ref<Buffer>& srcBuffer,
+        const Ref<Buffer>& dstBuffer, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
     {
-        // D3D12 缓冲区通常不需要显式转换
+        auto* src = static_cast<D3D12Buffer*>(srcBuffer.get());
+        auto* dst = static_cast<D3D12Buffer*>(dstBuffer.get());
+        m_commandList->CopyBufferRegion(dst->GetHandle(), dstOffset, src->GetHandle(), srcOffset, size);
+    }
+
+    void D3D12CommandBufferEncoder::DrawIndirect(const Ref<Buffer>& argBuffer, uint64_t offset,
+        uint32_t drawCount, uint32_t stride)
+    {
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(m_device);
+        auto* d3dBuf = static_cast<D3D12Buffer*>(argBuffer.get());
+
+        D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
+        argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+        D3D12_COMMAND_SIGNATURE_DESC sigDesc{};
+        sigDesc.ByteStride = stride > 0 ? stride : sizeof(D3D12_DRAW_ARGUMENTS);
+        sigDesc.NumArgumentDescs = 1;
+        sigDesc.pArgumentDescs = &argDesc;
+
+        ComPtr<ID3D12CommandSignature> cmdSig;
+        d3dDevice->GetHandle()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&cmdSig));
+        if (cmdSig)
+            m_commandList->ExecuteIndirect(cmdSig.Get(), drawCount, d3dBuf->GetHandle(), offset, nullptr, 0);
+    }
+
+    void D3D12CommandBufferEncoder::DrawIndexedIndirect(const Ref<Buffer>& argBuffer, uint64_t offset,
+        uint32_t drawCount, uint32_t stride)
+    {
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(m_device);
+        auto* d3dBuf = static_cast<D3D12Buffer*>(argBuffer.get());
+
+        D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
+        argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+        D3D12_COMMAND_SIGNATURE_DESC sigDesc{};
+        sigDesc.ByteStride = stride > 0 ? stride : sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+        sigDesc.NumArgumentDescs = 1;
+        sigDesc.pArgumentDescs = &argDesc;
+
+        ComPtr<ID3D12CommandSignature> cmdSig;
+        d3dDevice->GetHandle()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&cmdSig));
+        if (cmdSig)
+            m_commandList->ExecuteIndirect(cmdSig.Get(), drawCount, d3dBuf->GetHandle(), offset, nullptr, 0);
+    }
+
+    void D3D12CommandBufferEncoder::DispatchIndirect(const Ref<Buffer>& argBuffer, uint64_t offset)
+    {
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(m_device);
+        auto* d3dBuf = static_cast<D3D12Buffer*>(argBuffer.get());
+
+        D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
+        argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+        D3D12_COMMAND_SIGNATURE_DESC sigDesc{};
+        sigDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+        sigDesc.NumArgumentDescs = 1;
+        sigDesc.pArgumentDescs = &argDesc;
+
+        ComPtr<ID3D12CommandSignature> cmdSig;
+        d3dDevice->GetHandle()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&cmdSig));
+        if (cmdSig)
+            m_commandList->ExecuteIndirect(cmdSig.Get(), 1, d3dBuf->GetHandle(), offset, nullptr, 0);
+    }
+
+    void D3D12CommandBufferEncoder::DrawIndirectCount(const Ref<Buffer>& argBuffer, uint64_t offset,
+        const Ref<Buffer>& countBuffer, uint64_t countOffset,
+        uint32_t maxDrawCount, uint32_t stride)
+    {
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(m_device);
+        auto* d3dArg = static_cast<D3D12Buffer*>(argBuffer.get());
+        auto* d3dCount = static_cast<D3D12Buffer*>(countBuffer.get());
+
+        D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
+        argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+        D3D12_COMMAND_SIGNATURE_DESC sigDesc{};
+        sigDesc.ByteStride = stride > 0 ? stride : sizeof(D3D12_DRAW_ARGUMENTS);
+        sigDesc.NumArgumentDescs = 1;
+        sigDesc.pArgumentDescs = &argDesc;
+
+        ComPtr<ID3D12CommandSignature> cmdSig;
+        d3dDevice->GetHandle()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&cmdSig));
+        if (cmdSig)
+            m_commandList->ExecuteIndirect(cmdSig.Get(), maxDrawCount,
+                d3dArg->GetHandle(), offset,
+                d3dCount->GetHandle(), countOffset);
+    }
+
+    void D3D12CommandBufferEncoder::DrawIndexedIndirectCount(const Ref<Buffer>& argBuffer, uint64_t offset,
+        const Ref<Buffer>& countBuffer, uint64_t countOffset,
+        uint32_t maxDrawCount, uint32_t stride)
+    {
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(m_device);
+        auto* d3dArg = static_cast<D3D12Buffer*>(argBuffer.get());
+        auto* d3dCount = static_cast<D3D12Buffer*>(countBuffer.get());
+
+        D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
+        argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+        D3D12_COMMAND_SIGNATURE_DESC sigDesc{};
+        sigDesc.ByteStride = stride > 0 ? stride : sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+        sigDesc.NumArgumentDescs = 1;
+        sigDesc.pArgumentDescs = &argDesc;
+
+        ComPtr<ID3D12CommandSignature> cmdSig;
+        d3dDevice->GetHandle()->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&cmdSig));
+        if (cmdSig)
+            m_commandList->ExecuteIndirect(cmdSig.Get(), maxDrawCount,
+                d3dArg->GetHandle(), offset,
+                d3dCount->GetHandle(), countOffset);
+    }
+
+    void D3D12CommandBufferEncoder::DispatchMesh(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+    {
+        ComPtr<ID3D12GraphicsCommandList6> cmdList6;
+        if (SUCCEEDED(m_commandList->QueryInterface(IID_PPV_ARGS(&cmdList6))))
+            cmdList6->DispatchMesh(groupCountX, groupCountY, groupCountZ);
+    }
+
+    void D3D12CommandBufferEncoder::BeginDebugLabel(const std::string& name, float r, float g, float b, float a)
+    {
+#ifdef USE_PIX
+        PIXBeginEvent(m_commandList.Get(), PIX_COLOR(
+            static_cast<BYTE>(r * 255), static_cast<BYTE>(g * 255), static_cast<BYTE>(b * 255)), name.c_str());
+#endif
+    }
+
+    void D3D12CommandBufferEncoder::EndDebugLabel()
+    {
+#ifdef USE_PIX
+        PIXEndEvent(m_commandList.Get());
+#endif
+    }
+
+    void D3D12CommandBufferEncoder::InsertDebugLabel(const std::string& name, float r, float g, float b, float a)
+    {
+#ifdef USE_PIX
+        PIXSetMarker(m_commandList.Get(), PIX_COLOR(
+            static_cast<BYTE>(r * 255), static_cast<BYTE>(g * 255), static_cast<BYTE>(b * 255)), name.c_str());
+#endif
+    }
+
+    void D3D12CommandBufferEncoder::BeginQuery(const Ref<QueryPool>& pool, uint32_t queryIndex)
+    {
+        auto* d3dPool = static_cast<D3D12QueryPool*>(pool.get());
+        D3D12_QUERY_TYPE qtype = D3D12_QUERY_TYPE_OCCLUSION;
+        if (pool->GetType() == QueryType::Timestamp) qtype = D3D12_QUERY_TYPE_TIMESTAMP;
+        else if (pool->GetType() == QueryType::PipelineStatistics) qtype = D3D12_QUERY_TYPE_PIPELINE_STATISTICS;
+        m_commandList->BeginQuery(d3dPool->GetHeap(), qtype, queryIndex);
+    }
+
+    void D3D12CommandBufferEncoder::EndQuery(const Ref<QueryPool>& pool, uint32_t queryIndex)
+    {
+        auto* d3dPool = static_cast<D3D12QueryPool*>(pool.get());
+        D3D12_QUERY_TYPE qtype = D3D12_QUERY_TYPE_OCCLUSION;
+        if (pool->GetType() == QueryType::Timestamp) qtype = D3D12_QUERY_TYPE_TIMESTAMP;
+        else if (pool->GetType() == QueryType::PipelineStatistics) qtype = D3D12_QUERY_TYPE_PIPELINE_STATISTICS;
+        m_commandList->EndQuery(d3dPool->GetHeap(), qtype, queryIndex);
+    }
+
+    void D3D12CommandBufferEncoder::WriteTimestamp(const Ref<QueryPool>& pool, uint32_t queryIndex)
+    {
+        auto* d3dPool = static_cast<D3D12QueryPool*>(pool.get());
+        m_commandList->EndQuery(d3dPool->GetHeap(), D3D12_QUERY_TYPE_TIMESTAMP, queryIndex);
+    }
+
+    void D3D12CommandBufferEncoder::ResetQueryPool(const Ref<QueryPool>& pool, uint32_t first, uint32_t count)
+    {
+        // D3D12: query pools don't need explicit reset
+    }
+
+    void D3D12CommandBufferEncoder::TraceRays(const Ref<ShaderBindingTable>& sbt,
+                                               uint32_t w, uint32_t h, uint32_t d)
+    {
+        auto* d3dSBT = static_cast<D3D12ShaderBindingTable*>(sbt.get());
+        auto desc = d3dSBT->GetDispatchRaysDesc(w, h, d);
+
+        ComPtr<ID3D12GraphicsCommandList4> cmdList4;
+        m_commandList->QueryInterface(IID_PPV_ARGS(&cmdList4));
+        if (cmdList4)
+            cmdList4->DispatchRays(&desc);
+    }
+
+    void D3D12CommandBufferEncoder::BindRayTracingPipeline(const Ref<RayTracingPipeline>& pipeline)
+    {
+        auto* d3dPipeline = static_cast<D3D12RayTracingPipeline*>(pipeline.get());
+        ComPtr<ID3D12GraphicsCommandList4> cmdList4;
+        m_commandList->QueryInterface(IID_PPV_ARGS(&cmdList4));
+        if (cmdList4)
+            cmdList4->SetPipelineState1(d3dPipeline->GetStateObject());
+
+        auto* layout = static_cast<D3D12PipelineLayout*>(pipeline->GetLayout().get());
+        m_commandList->SetComputeRootSignature(layout->GetHandle());
+    }
+
+    void D3D12CommandBufferEncoder::BindRayTracingDescriptorSets(
+        const Ref<RayTracingPipeline>& pipeline, uint32_t firstSet,
+        std::span<const Ref<DescriptorSet>> descriptorSets)
+    {
+        std::vector<ID3D12DescriptorHeap*> heaps;
+        for (auto& ds : descriptorSets)
+        {
+            auto* d3dSet = static_cast<D3D12DescriptorSet*>(ds.get());
+            if (d3dSet->GetCBVSRVUAVHeap())
+            {
+                bool found = false;
+                for (auto h : heaps) if (h == d3dSet->GetCBVSRVUAVHeap()) { found = true; break; }
+                if (!found) heaps.push_back(d3dSet->GetCBVSRVUAVHeap());
+            }
+            if (d3dSet->GetSamplerHeap())
+            {
+                bool found = false;
+                for (auto h : heaps) if (h == d3dSet->GetSamplerHeap()) { found = true; break; }
+                if (!found) heaps.push_back(d3dSet->GetSamplerHeap());
+            }
+        }
+        if (!heaps.empty())
+            m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
+
+        uint32_t rootIdx = firstSet;
+        for (auto& ds : descriptorSets)
+        {
+            auto* d3dSet = static_cast<D3D12DescriptorSet*>(ds.get());
+            if (d3dSet->HasCBVSRVUAV())
+            {
+                m_commandList->SetComputeRootDescriptorTable(rootIdx, d3dSet->GetCBVSRVUAVGPUHandle());
+                rootIdx++;
+            }
+            if (d3dSet->HasSamplers())
+            {
+                m_commandList->SetComputeRootDescriptorTable(rootIdx, d3dSet->GetSamplerGPUHandle());
+                rootIdx++;
+            }
+        }
     }
 
     void D3D12CommandBufferEncoder::MemoryBarrierFast(MemoryTransition transition)
@@ -552,95 +682,14 @@ namespace Cacao
         m_commandList->ResourceBarrier(1, &barrier);
     }
 
-    void D3D12CommandBufferEncoder::ExecuteNative(const std::function<void(void*)>& func)
+    void D3D12CommandBufferEncoder::BuildAccelerationStructure(const Ref<AccelerationStructure>& as)
     {
-        func(m_commandList.Get());
-    }
+        auto* d3dAS = static_cast<D3D12AccelerationStructure*>(as.get());
+        auto desc = d3dAS->GetBuildDesc();
 
-    void* D3D12CommandBufferEncoder::GetNativeHandle()
-    {
-        return m_commandList.Get();
-    }
-
-    void D3D12CommandBufferEncoder::CopyBufferToImage(const Ref<Buffer>& srcBuffer, const Ref<Texture>& dstImage,
-                                                      ImageLayout dstImageLayout,
-                                                      std::span<const BufferImageCopy> regions)
-    {
-        auto* d3d12Buffer = static_cast<D3D12Buffer*>(srcBuffer.get());
-        auto* d3d12Texture = static_cast<D3D12Texture*>(dstImage.get());
-
-        for (const auto& region : regions)
-        {
-            D3D12_TEXTURE_COPY_LOCATION dst = {};
-            dst.pResource = d3d12Texture->GetResource();
-            dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-            dst.SubresourceIndex = region.ImageSubresource.MipLevel +
-                region.ImageSubresource.BaseArrayLayer * dstImage->GetMipLevels();
-
-            // Calculate bytes per pixel based on format
-            uint32_t bytesPerPixel = GetFormatBytesPerPixel(dstImage->GetFormat());
-            
-            // Calculate row pitch based on actual buffer data layout
-            // NOTE: D3D12 requires RowPitch to be aligned to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256 bytes).
-            // If your staging buffer has tightly-packed pixel data and the width doesn't naturally align,
-            // you MUST pad your staging buffer data row-by-row to match the aligned pitch.
-            // For example: a 100-wide RGBA8 texture has natural pitch of 400 bytes, but D3D12 requires 512.
-            // In this case, you must allocate 512 * height bytes and copy each row with 512-byte stride.
-            uint32_t rowPitch;
-            if (region.BufferRowLength > 0)
-            {
-                // User provided explicit row length - use it (assumes they've aligned it properly)
-                rowPitch = region.BufferRowLength;
-            }
-            else
-            {
-                // Tightly packed data - use natural pitch
-                rowPitch = region.ImageExtentWidth * bytesPerPixel;
-            }
-            
-            // D3D12 requires 256-byte aligned RowPitch - align it
-            // WARNING: This assumes the staging buffer data is ALSO laid out with this alignment!
-            rowPitch = (rowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
-
-            D3D12_TEXTURE_COPY_LOCATION src = {};
-            src.pResource = d3d12Buffer->GetHandle();
-            src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-            src.PlacedFootprint.Offset = region.BufferOffset;
-            src.PlacedFootprint.Footprint.Format = D3D12Converter::Convert(dstImage->GetFormat());
-            src.PlacedFootprint.Footprint.Width = region.ImageExtentWidth;
-            src.PlacedFootprint.Footprint.Height = region.ImageExtentHeight;
-            src.PlacedFootprint.Footprint.Depth = region.ImageExtentDepth;
-            src.PlacedFootprint.Footprint.RowPitch = rowPitch;
-
-            D3D12_BOX srcBox = {};
-            srcBox.left = 0;
-            srcBox.top = 0;
-            srcBox.front = 0;
-            srcBox.right = region.ImageExtentWidth;
-            srcBox.bottom = region.ImageExtentHeight;
-            srcBox.back = region.ImageExtentDepth;
-
-            m_commandList->CopyTextureRegion(&dst,
-                                             region.ImageOffsetX, region.ImageOffsetY, region.ImageOffsetZ,
-                                             &src, &srcBox);
-        }
-    }
-
-    CommandBufferType D3D12CommandBufferEncoder::GetCommandBufferType() const
-    {
-        return m_type;
-    }
-
-    void D3D12CommandBufferEncoder::CopyBuffer(const Ref<Buffer>& srcBuffer, const Ref<Buffer>& dstBuffer,
-                                               uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
-    {
-        auto* d3d12SrcBuffer = static_cast<D3D12Buffer*>(srcBuffer.get());
-        auto* d3d12DstBuffer = static_cast<D3D12Buffer*>(dstBuffer.get());
-
-        m_commandList->CopyBufferRegion(
-            d3d12DstBuffer->GetHandle(), dstOffset,
-            d3d12SrcBuffer->GetHandle(), srcOffset,
-            size);
+        ComPtr<ID3D12GraphicsCommandList4> cmdList4;
+        m_commandList->QueryInterface(IID_PPV_ARGS(&cmdList4));
+        if (cmdList4)
+            cmdList4->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
     }
 }
-#endif

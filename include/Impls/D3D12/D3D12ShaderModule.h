@@ -1,40 +1,24 @@
 #ifndef CACAO_D3D12SHADERMODULE_H
 #define CACAO_D3D12SHADERMODULE_H
-#ifdef WIN32
 #include "D3D12Common.h"
 #include "ShaderModule.h"
-#include "Device.h"
 
 namespace Cacao
 {
-    class D3D12Device;
-
-    class CACAO_API D3D12ShaderModule : public ShaderModule
+    class CACAO_API D3D12ShaderModule final : public ShaderModule
     {
-        Ref<D3D12Device> m_device;
-        ShaderBlob m_shaderBlob;
-        ShaderCreateInfo m_createInfo;
+    private:
+        ShaderBlob m_blob;
+        ShaderCreateInfo m_info;
 
     public:
-        D3D12ShaderModule(
-            const Ref<Device>& device,
-            const ShaderCreateInfo& info,
-            const ShaderBlob& blob);
+        D3D12ShaderModule(const ShaderBlob& blob, const ShaderCreateInfo& info)
+            : m_blob(blob), m_info(info) {}
 
-        static Ref<D3D12ShaderModule> Create(
-            const Ref<Device>& device,
-            const ShaderCreateInfo& info,
-            const ShaderBlob& blob);
-
-        const std::string& GetEntryPoint() const override;
-        ShaderStage GetStage() const override;
-        const ShaderBlob& GetBlob() const override;
-
-        // 获取 D3D12 着色器字节码描述符
-        D3D12_SHADER_BYTECODE GetBytecode() const;
-
-        ~D3D12ShaderModule() override;
+        const std::string& GetEntryPoint() const override { return m_info.EntryPoint; }
+        ShaderStage GetStage() const override { return m_info.Stage; }
+        const ShaderBlob& GetBlob() const override { return m_blob; }
     };
 }
-#endif
+
 #endif

@@ -5,69 +5,57 @@ namespace Cacao
 {
     class Buffer;
     class Texture;
-    enum class PipelineStage : uint32_t
+
+    enum class ResourceState : uint32_t
     {
-        None = 0,
-        TopOfPipe = 1 << 0,
-        DrawIndirect = 1 << 1,
-        VertexInput = 1 << 2,
-        VertexShader = 1 << 3,
-        HullShader = 1 << 4,
-        DomainShader = 1 << 5,
-        GeometryShader = 1 << 6,
-        FragmentShader = 1 << 7,
-        EarlyFragmentTests = 1 << 8,
-        LateFragmentTests = 1 << 9,
-        ColorAttachmentOutput = 1 << 10,
-        ComputeShader = 1 << 11,
-        Transfer = 1 << 12,
-        BottomOfPipe = 1 << 13,
-        Host = 1 << 14,
-        AllGraphics = 1 << 15,
-        AllCommands = 1 << 16,
-    };
-    inline PipelineStage operator|(PipelineStage a, PipelineStage b)
-    {
-        return static_cast<PipelineStage>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
-    }
-    enum class AccessFlags : uint32_t
-    {
-        None = 0,
-        IndirectCommandRead = 1 << 0,
-        IndexRead = 1 << 1,
-        VertexAttributeRead = 1 << 2,
-        UniformRead = 1 << 3,
-        InputAttachmentRead = 1 << 4,
-        ShaderRead = 1 << 5,
-        ShaderWrite = 1 << 6,
-        ColorAttachmentRead = 1 << 7,
-        ColorAttachmentWrite = 1 << 8,
-        DepthStencilAttachmentRead = 1 << 9,
-        DepthStencilAttachmentWrite = 1 << 10,
-        TransferRead = 1 << 11,
-        TransferWrite = 1 << 12,
+        Undefined = 0,
+        Common = 1 << 0,
+        VertexBuffer = 1 << 1,
+        IndexBuffer = 1 << 2,
+        UniformBuffer = 1 << 3,
+        RenderTarget = 1 << 4,
+        UnorderedAccess = 1 << 5,
+        DepthWrite = 1 << 6,
+        DepthRead = 1 << 7,
+        ShaderRead = 1 << 8,
+        CopySource = 1 << 9,
+        CopyDest = 1 << 10,
+        Present = 1 << 11,
+        IndirectArgument = 1 << 12,
         HostRead = 1 << 13,
         HostWrite = 1 << 14,
-        MemoryRead = 1 << 15,
-        MemoryWrite = 1 << 16
+        General = 1 << 15,
     };
-    inline AccessFlags operator|(AccessFlags a, AccessFlags b)
+    inline ResourceState operator|(ResourceState a, ResourceState b)
     {
-        return static_cast<AccessFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+        return static_cast<ResourceState>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
     }
-    enum class ImageLayout
+    inline bool operator&(ResourceState a, ResourceState b)
     {
-        Undefined,
-        General,
-        ColorAttachment,
-        DepthStencilAttachment,
-        DepthStencilReadOnly,
-        ShaderReadOnly,
-        TransferSrc,
-        TransferDst,
-        Present,
-        Preinitialized
+        return (static_cast<uint32_t>(a) & static_cast<uint32_t>(b)) != 0;
+    }
+
+    enum class SyncScope : uint32_t
+    {
+        None = 0,
+        VertexStage = 1 << 0,
+        FragmentStage = 1 << 1,
+        ComputeStage = 1 << 2,
+        TransferStage = 1 << 3,
+        HostStage = 1 << 4,
+        AllGraphics = 1 << 5,
+        AllCommands = 1 << 6,
     };
+    inline SyncScope operator|(SyncScope a, SyncScope b)
+    {
+        return static_cast<SyncScope>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    }
+
+    // Legacy aliases for backward compatibility
+    using PipelineStage = SyncScope;
+    using AccessFlags = ResourceState;
+    using ImageLayout = ResourceState;
+
     enum class ImageAspectFlags : uint32_t
     {
         None = 0,
@@ -104,29 +92,27 @@ namespace Cacao
     };
     struct CMemoryBarrier
     {
-        AccessFlags SrcAccess;
-        AccessFlags DstAccess;
+        ResourceState OldState;
+        ResourceState NewState;
     };
     struct BufferBarrier
     {
         Ref<Buffer> Buffer;
-        AccessFlags SrcAccess;
-        AccessFlags DstAccess;
+        ResourceState OldState;
+        ResourceState NewState;
         uint64_t Offset = 0;
         uint64_t Size = UINT64_MAX;
-        uint32_t SrcQueueFamilyIndex = UINT32_MAX;
-        uint32_t DstQueueFamilyIndex = UINT32_MAX;
+        uint32_t SrcQueueFamily = UINT32_MAX;
+        uint32_t DstQueueFamily = UINT32_MAX;
     };
     struct TextureBarrier
     {
         Ref<Texture> Texture;
-        AccessFlags SrcAccess;
-        AccessFlags DstAccess;
-        ImageLayout OldLayout;
-        ImageLayout NewLayout;
+        ResourceState OldState;
+        ResourceState NewState;
         ImageSubresourceRange SubresourceRange = ImageSubresourceRange::All();
-        uint32_t SrcQueueFamilyIndex = UINT32_MAX;
-        uint32_t DstQueueFamilyIndex = UINT32_MAX;
+        uint32_t SrcQueueFamily = UINT32_MAX;
+        uint32_t DstQueueFamily = UINT32_MAX;
     };
 }
 #endif

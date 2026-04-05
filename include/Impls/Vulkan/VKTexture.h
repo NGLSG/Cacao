@@ -58,7 +58,7 @@ namespace Cacao
         TextureType GetType() const override;
         SampleCount GetSampleCount() const override;
         TextureUsageFlags GetUsage() const override;
-        ImageLayout GetCurrentLayout() const override;
+        ResourceState GetCurrentState() const override;
         Ref<CacaoTextureView> CreateView(const TextureViewDesc& desc) override;
         ~VKTexture() override;
         Ref<CacaoTextureView> GetDefaultView() override

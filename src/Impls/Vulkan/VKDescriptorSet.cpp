@@ -6,6 +6,7 @@
 #include "Impls/Vulkan/VKDevice.h"
 #include "Impls/Vulkan/VKTexture.h"
 #include "Impls/Vulkan/VKSampler.h"
+#include "Impls/Vulkan/VKAccelerationStructure.h"
 
 namespace Cacao
 {
@@ -26,7 +27,7 @@ namespace Cacao
         {
             auto vkView = std::static_pointer_cast<VKTextureView>(info.TextureView);
             vkInfo.imageView = vkView->GetHandle();
-            vkInfo.imageLayout = VKConverter::Convert(info.Layout);
+            vkInfo.imageLayout = VKConverter::ConvertResourceStateToLayout(info.Layout);
         }
         if (info.Sampler)
         {
@@ -139,8 +140,8 @@ namespace Cacao
 
     void VKDescriptorSet::WriteAccelerationStructure(const AccelerationStructureWriteInfo& info)
     {
-        m_pendingASHandles.push_back(
-            *reinterpret_cast<const vk::AccelerationStructureKHR*>(&info.AccelerationStructureHandle));
+        auto* vkAS = static_cast<const VKAccelerationStructure*>(info.AccelerationStructureHandle);
+        m_pendingASHandles.push_back(vk::AccelerationStructureKHR(vkAS->GetHandle()));
         vk::AccelerationStructureKHR* pASHandle = &m_pendingASHandles.back();
         vk::WriteDescriptorSetAccelerationStructureKHR vkASInfo = {};
         vkASInfo.accelerationStructureCount = 1;
@@ -196,7 +197,7 @@ namespace Cacao
                 TextureWriteInfo{
                     infos.Binding,
                     infos.TextureViews[i],
-                    infos.Layouts.size() > i ? infos.Layouts[i] : ImageLayout::ShaderReadOnly,
+                    infos.Layouts.size() > i ? infos.Layouts[i] : ResourceState::ShaderRead,
                     infos.Type,
                     infos.Samplers.size() > i ? infos.Samplers[i] : nullptr,
                     infos.ArrayElement + static_cast<uint32_t>(i)

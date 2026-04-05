@@ -19,6 +19,7 @@ namespace Cacao
             auto* vkShaderModule = static_cast<VKShaderModule*>(shaderModules[i].get());
             outShaderStages[i].stage = VKConverter::ConvertShaderStageBits(vkShaderModule->GetStage());
             outShaderStages[i].module = vkShaderModule->GetHandle();
+            // Slang-generated SPIR-V entry point is typically "main".
             outShaderStages[i].pName = "main";
         }
     }
@@ -197,98 +198,6 @@ namespace Cacao
             renderingInfo.stencilAttachmentFormat = vk::Format::eUndefined;
         }
         return renderingInfo;
-    }
-    VKPipelineCache::VKPipelineCache(const Ref<Device>& device,
-                                     std::span<const uint8_t> initialData)
-    {
-        if (!device)
-        {
-            throw std::runtime_error("VKPipelineCache created with null device");
-        }
-        m_device = std::dynamic_pointer_cast<VKDevice>(device);
-        if (!m_device)
-        {
-            throw std::runtime_error("VKPipelineCache requires a VKDevice");
-        }
-        vk::PipelineCacheCreateInfo createInfo = {};
-        createInfo.initialDataSize = initialData.size();
-        createInfo.pInitialData = initialData.empty() ? nullptr : initialData.data();
-        m_pipelineCache = m_device->GetHandle().createPipelineCache(createInfo);
-    }
-    VKPipelineCache::~VKPipelineCache()
-    {
-        if (m_pipelineCache && m_device)
-        {
-            m_device->GetHandle().destroyPipelineCache(m_pipelineCache);
-            m_pipelineCache = VK_NULL_HANDLE;
-        }
-    }
-    Ref<VKPipelineCache> VKPipelineCache::Create(const Ref<Device>& device,
-                                                 std::span<const uint8_t> initialData)
-    {
-        return std::make_shared<VKPipelineCache>(device, initialData);
-    }
-    std::vector<uint8_t> VKPipelineCache::GetData() const
-    {
-        if (!m_pipelineCache || !m_device)
-        {
-            return {};
-        }
-        size_t dataSize = 0;
-        vk::Result result = m_device->GetHandle().getPipelineCacheData(m_pipelineCache, &dataSize, nullptr);
-        if (result != vk::Result::eSuccess || dataSize == 0)
-        {
-            return {};
-        }
-        std::vector<uint8_t> data(dataSize);
-        result = m_device->GetHandle().getPipelineCacheData(m_pipelineCache, &dataSize, data.data());
-        if (result != vk::Result::eSuccess)
-        {
-            throw std::runtime_error("Failed to get pipeline cache data: " + vk::to_string(result));
-        }
-        data.resize(dataSize);
-        return data;
-    }
-    void VKPipelineCache::Merge(std::span<const Ref<PipelineCache>> srcCaches)
-    {
-        if (!m_pipelineCache || !m_device)
-        {
-            throw std::runtime_error("Cannot merge into invalid pipeline cache");
-        }
-        if (srcCaches.empty())
-        {
-            return;
-        }
-        std::vector<vk::PipelineCache> vkSrcCaches;
-        vkSrcCaches.reserve(srcCaches.size());
-        for (const auto& srcCache : srcCaches)
-        {
-            if (!srcCache)
-            {
-                continue;
-            }
-            Ref<VKPipelineCache> vkCache = std::dynamic_pointer_cast<VKPipelineCache>(srcCache);
-            if (!vkCache)
-            {
-                throw std::runtime_error("Cannot merge non-Vulkan pipeline cache into VKPipelineCache");
-            }
-            if (vkCache->GetHandle())
-            {
-                vkSrcCaches.push_back(vkCache->GetHandle());
-            }
-        }
-        if (vkSrcCaches.empty())
-        {
-            return;
-        }
-        vk::Result result = m_device->GetHandle().mergePipelineCaches(
-            m_pipelineCache,
-            static_cast<uint32_t>(vkSrcCaches.size()),
-            vkSrcCaches.data());
-        if (result != vk::Result::eSuccess)
-        {
-            throw std::runtime_error("Failed to merge pipeline caches: " + vk::to_string(result));
-        }
     }
     VKGraphicsPipeline::VKGraphicsPipeline(const Ref<Device>& device, const GraphicsPipelineCreateInfo& createInfo)
     {

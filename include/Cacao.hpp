@@ -21,5 +21,7 @@
 #include "PipelineLayout.h"
 #include "Pipeline.h"
 #include "CommandBufferEncoder.h"
+#include "QueryPool.h"
 #include "Builders.h"
+#include "RayTracing.h"
 #endif

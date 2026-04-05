@@ -36,6 +36,12 @@ namespace Cacao
         friend class VKPipelineCache;
         friend class VKGraphicsPipeline;
         friend class VKComputePipeline;
+        friend class VKQueryPool;
+        friend class VKTimelineSemaphore;
+        friend class VKCommandBufferEncoder;
+        friend class VKAccelerationStructure;
+        friend class VKShaderBindingTable;
+        friend class VKRayTracingPipeline;
         vk::Device& GetHandle() { return m_Device; }
         std::vector<uint32_t> m_queueFamilyIndices;
         Ref<Adapter> m_parentAdapter;
@@ -71,6 +77,12 @@ namespace Cacao
         Ref<GraphicsPipeline> CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info) override;
         Ref<ComputePipeline> CreateComputePipeline(const ComputePipelineCreateInfo& info) override;
         Ref<Synchronization> CreateSynchronization(uint32_t maxFramesInFlight) override;
+
+        Ref<AccelerationStructure> CreateAccelerationStructure(const AccelerationStructureCreateInfo& info) override;
+        Ref<RayTracingPipeline> CreateRayTracingPipeline(const RayTracingPipelineCreateInfo& info) override;
+        Ref<ShaderBindingTable> CreateShaderBindingTable(const Ref<RayTracingPipeline>& pipeline,
+            uint32_t rayGenCount, uint32_t missCount,
+            uint32_t hitGroupCount, uint32_t callableCount) override;
     };
 }
 #endif

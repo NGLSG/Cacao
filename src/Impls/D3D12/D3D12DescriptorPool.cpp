@@ -1,94 +1,112 @@
-#ifdef WIN32
 #include "Impls/D3D12/D3D12DescriptorPool.h"
 #include "Impls/D3D12/D3D12Device.h"
 #include "Impls/D3D12/D3D12DescriptorSet.h"
-#include <stdexcept>
+#include "Impls/D3D12/D3D12DescriptorSetLayout.h"
 
 namespace Cacao
 {
     D3D12DescriptorPool::D3D12DescriptorPool(const Ref<Device>& device, const DescriptorPoolCreateInfo& info)
-        : m_createInfo(info)
+        : m_device(device)
     {
-        m_device = std::dynamic_pointer_cast<D3D12Device>(device);
-        if (!m_device) throw std::runtime_error("Invalid device");
+        auto d3dDevice = std::dynamic_pointer_cast<D3D12Device>(device);
 
-        // 统计总需求
-        for (const auto& size : info.PoolSizes)
-        {
-            if (size.Type == DescriptorType::Sampler)
-                m_samplerCapacity += size.Count;
-            else
-                m_cbvSrvUavCapacity += size.Count;
-        }
+        m_cbvSrvUavDescriptorSize = d3dDevice->GetHandle()->GetDescriptorHandleIncrementSize(
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        m_samplerDescriptorSize = d3dDevice->GetHandle()->GetDescriptorHandleIncrementSize(
+            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
-        // 创建 CBV/SRV/UAV 堆
-        if (m_cbvSrvUavCapacity > 0)
-        {
-            D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-            heapDesc.NumDescriptors = m_cbvSrvUavCapacity;
-            heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-            heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // 必须可见
+        uint32_t totalCbvSrvUav = info.MaxSets * 16;
+        uint32_t totalSamplers = info.MaxSets * 4;
 
-            if (FAILED(m_device->GetHandle()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_cbvSrvUavHeap))))
-                throw std::runtime_error("Failed to create CBV/SRV/UAV heap");
+        D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+        heapDesc.NumDescriptors = totalCbvSrvUav;
+        heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        d3dDevice->GetHandle()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_cbvSrvUavHeap));
 
-            m_cbvSrvUavIncrement = m_device->GetHandle()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        }
-
-        // 创建 Sampler 堆
-        if (m_samplerCapacity > 0)
-        {
-            D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-            heapDesc.NumDescriptors = m_samplerCapacity;
-            heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-            heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // 必须可见
-
-            if (FAILED(m_device->GetHandle()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_samplerHeap))))
-                throw std::runtime_error("Failed to create Sampler heap");
-
-            m_samplerIncrement = m_device->GetHandle()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-        }
+        heapDesc.NumDescriptors = totalSamplers;
+        heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+        heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        d3dDevice->GetHandle()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_samplerHeap));
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE D3D12DescriptorPool::AllocateCbvSrvUav(uint32_t count, D3D12_CPU_DESCRIPTOR_HANDLE& outCpuHandle)
+    D3D12_CPU_DESCRIPTOR_HANDLE D3D12DescriptorPool::AllocateCBVSRVUAV()
     {
-        if (m_cbvSrvUavOffset + count > m_cbvSrvUavCapacity)
-            throw std::runtime_error("Descriptor pool exhausted (CBV/SRV/UAV)");
-
-        auto cpuStart = m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart();
-        auto gpuStart = m_cbvSrvUavHeap->GetGPUDescriptorHandleForHeapStart();
-
-        outCpuHandle = cpuStart;
-        outCpuHandle.ptr += m_cbvSrvUavOffset * m_cbvSrvUavIncrement;
-
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = gpuStart;
-        gpuHandle.ptr += m_cbvSrvUavOffset * m_cbvSrvUavIncrement;
-
-        m_cbvSrvUavOffset += count;
-        return gpuHandle;
+        auto handle = m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart();
+        handle.ptr += m_cbvSrvUavOffset * m_cbvSrvUavDescriptorSize;
+        m_cbvSrvUavOffset++;
+        return handle;
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE D3D12DescriptorPool::AllocateSampler(uint32_t count, D3D12_CPU_DESCRIPTOR_HANDLE& outCpuHandle)
+    D3D12_CPU_DESCRIPTOR_HANDLE D3D12DescriptorPool::AllocateSampler()
     {
-        if (m_samplerOffset + count > m_samplerCapacity)
-            throw std::runtime_error("Descriptor pool exhausted (Sampler)");
+        auto handle = m_samplerHeap->GetCPUDescriptorHandleForHeapStart();
+        handle.ptr += m_samplerOffset * m_samplerDescriptorSize;
+        m_samplerOffset++;
+        return handle;
+    }
 
-        auto cpuStart = m_samplerHeap->GetCPUDescriptorHandleForHeapStart();
-        auto gpuStart = m_samplerHeap->GetGPUDescriptorHandleForHeapStart();
+    D3D12_GPU_DESCRIPTOR_HANDLE D3D12DescriptorPool::GetGPUHandleForCBVSRVUAV(uint32_t offset) const
+    {
+        auto handle = m_cbvSrvUavHeap->GetGPUDescriptorHandleForHeapStart();
+        handle.ptr += offset * m_cbvSrvUavDescriptorSize;
+        return handle;
+    }
 
-        outCpuHandle = cpuStart;
-        outCpuHandle.ptr += m_samplerOffset * m_samplerIncrement;
-
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = gpuStart;
-        gpuHandle.ptr += m_samplerOffset * m_samplerIncrement;
-
-        m_samplerOffset += count;
-        return gpuHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE D3D12DescriptorPool::GetGPUHandleForSampler(uint32_t offset) const
+    {
+        auto handle = m_samplerHeap->GetGPUDescriptorHandleForHeapStart();
+        handle.ptr += offset * m_samplerDescriptorSize;
+        return handle;
     }
 
     Ref<DescriptorSet> D3D12DescriptorPool::AllocateDescriptorSet(const Ref<DescriptorSetLayout>& layout)
     {
-        return D3D12DescriptorSet::Create(m_device, std::dynamic_pointer_cast<D3D12DescriptorPool>(shared_from_this()), layout);
+        auto d3dLayout = std::dynamic_pointer_cast<D3D12DescriptorSetLayout>(layout);
+        const auto& bindings = d3dLayout->GetBindings();
+
+        uint32_t cbvSrvUavCount = 0;
+        uint32_t samplerCount = 0;
+        std::vector<D3D12DescriptorSet::SlotInfo> bindingMap;
+
+        for (const auto& b : bindings)
+        {
+            if (b.Type == DescriptorType::Sampler)
+            {
+                bindingMap.push_back({b.Binding, true, samplerCount});
+                samplerCount += b.Count;
+            }
+            else
+            {
+                bindingMap.push_back({b.Binding, false, cbvSrvUavCount});
+                cbvSrvUavCount += b.Count;
+            }
+        }
+        if (cbvSrvUavCount == 0) cbvSrvUavCount = 1;
+
+        uint32_t cbvHeapOffset = m_cbvSrvUavOffset;
+        auto cbvGpu = GetGPUHandleForCBVSRVUAV(cbvHeapOffset);
+        auto cbvCpu = m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart();
+        cbvCpu.ptr += cbvHeapOffset * m_cbvSrvUavDescriptorSize;
+        m_cbvSrvUavOffset += cbvSrvUavCount;
+
+        D3D12_GPU_DESCRIPTOR_HANDLE sampGpu = {};
+        D3D12_CPU_DESCRIPTOR_HANDLE sampCpu = {};
+        uint32_t sampHeapOffset = m_samplerOffset;
+        if (samplerCount > 0)
+        {
+            sampGpu = GetGPUHandleForSampler(sampHeapOffset);
+            sampCpu = m_samplerHeap->GetCPUDescriptorHandleForHeapStart();
+            sampCpu.ptr += sampHeapOffset * m_samplerDescriptorSize;
+            m_samplerOffset += samplerCount;
+        }
+
+        return std::make_shared<D3D12DescriptorSet>(
+            m_device,
+            cbvGpu, cbvCpu, cbvSrvUavCount, m_cbvSrvUavDescriptorSize,
+            sampGpu, sampCpu, samplerCount, m_samplerDescriptorSize,
+            std::move(bindingMap),
+            m_cbvSrvUavHeap.Get(), m_samplerHeap.Get());
     }
 
     void D3D12DescriptorPool::Reset()
@@ -96,10 +114,4 @@ namespace Cacao
         m_cbvSrvUavOffset = 0;
         m_samplerOffset = 0;
     }
-
-    Ref<D3D12DescriptorPool> D3D12DescriptorPool::Create(const Ref<Device>& device, const DescriptorPoolCreateInfo& info)
-    {
-        return CreateRef<D3D12DescriptorPool>(device, info);
-    }
 }
-#endif

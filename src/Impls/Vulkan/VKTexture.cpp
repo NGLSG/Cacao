@@ -142,7 +142,8 @@ namespace Cacao
         if (m_createInfo.Usage & TextureUsageFlags::InputAttachment) usageFlags |= vk::ImageUsageFlagBits::eInputAttachment;
         if (m_createInfo.Usage & TextureUsageFlags::TransientAttachment) usageFlags |= vk::ImageUsageFlagBits::eTransientAttachment;
         imageInfo.usage = usageFlags;
-        imageInfo.initialLayout = VKConverter::Convert(m_createInfo.InitialLayout);
+        imageInfo.initialLayout = static_cast<vk::ImageLayout>(
+            VKResourceStateConvert::GetLayout(m_createInfo.InitialState));
         imageInfo.sharingMode = vk::SharingMode::eExclusive;
         VmaAllocationCreateInfo allocCreateInfo = {};
         allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -206,7 +207,7 @@ namespace Cacao
     TextureType VKTexture::GetType() const { return m_createInfo.Type; }
     SampleCount VKTexture::GetSampleCount() const { return m_createInfo.SampleCount; }
     TextureUsageFlags VKTexture::GetUsage() const { return m_createInfo.Usage; }
-    ImageLayout VKTexture::GetCurrentLayout() const { return m_createInfo.InitialLayout; }
+    ResourceState VKTexture::GetCurrentState() const { return m_createInfo.InitialState; }
     Ref<CacaoTextureView> VKTexture::CreateView(const TextureViewDesc& desc)
     {
         return VKTextureView::Create(shared_from_this(), desc);

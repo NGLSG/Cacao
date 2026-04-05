@@ -16,6 +16,8 @@ namespace Cacao
         std::vector<vk::ImageView> m_imageViews;
         Ref<VKDevice> m_device;
         SwapchainCreateInfo m_swapchainCreateInfo;
+        uint32_t m_currentImageIndex = 0;
+        bool m_hasAcquiredImage = false;
     public:
         static Ref<VKSwapchain> Create(const Ref<Device>& device, const SwapchainCreateInfo& createInfo);
         VKSwapchain(const Ref<Device>& device, const SwapchainCreateInfo& createInfo);

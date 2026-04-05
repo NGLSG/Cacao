@@ -1,5 +1,6 @@
 #ifndef CACAO_CACAOSYNCHRONIZATION_H
 #define CACAO_CACAOSYNCHRONIZATION_H
+#include "Core.h"
 namespace Cacao
 {
     class Swapchain;
@@ -13,5 +14,15 @@ namespace Cacao
         virtual ~Synchronization() = default;
         virtual void WaitIdle() const =0;
     };
+
+    class CACAO_API TimelineSemaphore : public std::enable_shared_from_this<TimelineSemaphore>
+    {
+    public:
+        virtual ~TimelineSemaphore() = default;
+        virtual void Signal(uint64_t value) = 0;
+        virtual bool Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX) = 0;
+        virtual uint64_t GetValue() const = 0;
+    };
 }
-#endif 
+#endif
+

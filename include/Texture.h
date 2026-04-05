@@ -58,7 +58,7 @@ namespace Cacao
         uint32_t MipLevels = 1;
         Format Format = Format::RGBA8_UNORM;
         TextureUsageFlags Usage = TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
-        ImageLayout InitialLayout = ImageLayout::Undefined;
+        ResourceState InitialState = ResourceState::Undefined;
         SampleCount SampleCount = SampleCount::Count1;
         std::string Name;
         void* InitialData = nullptr;
@@ -119,7 +119,7 @@ namespace Cacao
         virtual TextureType GetType() const = 0;
         virtual SampleCount GetSampleCount() const = 0;
         virtual TextureUsageFlags GetUsage() const = 0;
-        virtual ImageLayout GetCurrentLayout() const = 0;
+        virtual ResourceState GetCurrentState() const = 0;
         virtual Ref<CacaoTextureView> CreateView(const TextureViewDesc& desc) = 0;
         virtual Ref<CacaoTextureView> GetDefaultView() = 0;
         virtual void CreateDefaultViewIfNeeded() = 0;

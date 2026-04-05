@@ -21,6 +21,12 @@ namespace Cacao
         virtual void Reset() = 0;
         virtual Ref<DescriptorSet> AllocateDescriptorSet(
             const Ref<DescriptorSetLayout>& layout) = 0;
+        Ref<DescriptorSet> AllocateBindingGroup(const Ref<DescriptorSetLayout>& layout)
+        {
+            return AllocateDescriptorSet(layout);
+        }
     };
+
+    using BindingGroupAllocator = DescriptorPool;
 }
 #endif 

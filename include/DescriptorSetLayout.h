@@ -38,5 +38,22 @@ namespace Cacao
     public:
         virtual ~DescriptorSetLayout() = default;
     };
+
+    using BindingType = DescriptorType;
+    struct BindingSlot
+    {
+        uint32_t Slot = 0;
+        BindingType Type = BindingType::UniformBuffer;
+        uint32_t Count = 1;
+        ShaderStage Visibility = ShaderStage::AllGraphics;
+    };
+    struct BindingLayoutCreateInfo
+    {
+        std::vector<BindingSlot> Slots;
+        bool SupportBindless = false;
+    };
+    using BindingLayout = DescriptorSetLayout;
+    using BindingLayoutBinding = DescriptorSetLayoutBinding;
+    using BindingLayoutCreateInfoLegacy = DescriptorSetLayoutCreateInfo;
 }
 #endif 

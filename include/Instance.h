@@ -57,6 +57,7 @@ namespace Cacao
     };
     enum class BackendType
     {
+        Auto,
         Vulkan,
         DirectX12,
         DirectX11,
@@ -75,7 +76,7 @@ namespace Cacao
     };
     struct InstanceCreateInfo
     {
-        BackendType type = BackendType::Vulkan;
+        BackendType type = BackendType::Auto;
         std::string applicationName;
         uint32_t appVersion = 1;
         std::vector<InstanceFeature> enabledFeatures;
@@ -99,6 +100,8 @@ namespace Cacao
         {
             switch (type)
             {
+            case BackendType::Auto:
+                return "Auto";
             case BackendType::Vulkan:
                 return "Vulkan";
             case BackendType::DirectX12:
@@ -111,6 +114,8 @@ namespace Cacao
                 return "OpenGL";
             case BackendType::OpenGLES:
                 return "OpenGLES";
+            case BackendType::WebGPU:
+                return "WebGPU";
             default:
                 return "Unknown";
             }

@@ -1,6 +1,5 @@
 #ifndef CACAO_CACAODEVICE_H
 #define CACAO_CACAODEVICE_H
-#include <complex.h>
 #include "ShaderModule.h"
 namespace Cacao
 {
@@ -11,6 +10,14 @@ namespace Cacao
 {
     struct ComputePipelineCreateInfo;
     class ComputePipeline;
+    struct QueryPoolCreateInfo;
+    class QueryPool;
+    class TimelineSemaphore;
+    struct AccelerationStructureCreateInfo;
+    class AccelerationStructure;
+    struct RayTracingPipelineCreateInfo;
+    class RayTracingPipeline;
+    class ShaderBindingTable;
     struct GraphicsPipelineCreateInfo;
     class GraphicsPipeline;
     class PipelineCache;
@@ -82,6 +89,18 @@ namespace Cacao
         virtual Ref<ComputePipeline> CreateComputePipeline(
             const ComputePipelineCreateInfo& info) = 0;
         virtual Ref<Synchronization> CreateSynchronization(uint32_t maxFramesInFlight) = 0;
+
+        virtual Ref<QueryPool> CreateQueryPool(const QueryPoolCreateInfo& info) { return nullptr; }
+        virtual Ref<TimelineSemaphore> CreateTimelineSemaphore(uint64_t initialValue = 0) { return nullptr; }
+
+        virtual Ref<AccelerationStructure> CreateAccelerationStructure(const AccelerationStructureCreateInfo& info) { return nullptr; }
+        virtual Ref<RayTracingPipeline> CreateRayTracingPipeline(const RayTracingPipelineCreateInfo& info) { return nullptr; }
+        virtual Ref<ShaderBindingTable> CreateShaderBindingTable(const Ref<RayTracingPipeline>& pipeline,
+            uint32_t rayGenCount = 1, uint32_t missCount = 1,
+            uint32_t hitGroupCount = 1, uint32_t callableCount = 0) { return nullptr; }
+
+        bool ValidateGraphicsPipeline(const GraphicsPipelineCreateInfo& info) const;
+        bool ValidateDescriptorSetLayout(const DescriptorSetLayoutCreateInfo& info) const;
     };
 }
 #endif

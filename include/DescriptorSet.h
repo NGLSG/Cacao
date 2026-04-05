@@ -27,7 +27,7 @@ namespace Cacao
     {
         uint32_t Binding = 0;
         Ref<CacaoTextureView> TextureView = nullptr;
-        ImageLayout Layout = ImageLayout::ShaderReadOnly;
+        ResourceState Layout = ResourceState::ShaderRead;
         DescriptorType Type;
         Ref<Sampler> Sampler = nullptr;
         uint32_t ArrayElement = 0;
@@ -62,7 +62,7 @@ namespace Cacao
     {
         uint32_t Binding = 0;
         std::vector<Ref<CacaoTextureView>> TextureViews;
-        std::vector<ImageLayout> Layouts;
+        std::vector<ResourceState> Layouts;
         DescriptorType Type;
         std::vector<Ref<Sampler>> Samplers;
         uint32_t ArrayElement = 0;
@@ -97,5 +97,7 @@ namespace Cacao
         virtual void WriteAccelerationStructures(const AccelerationStructureWriteInfos& infos) =0;
         virtual void Update() = 0;
     };
+
+    using BindingGroup = DescriptorSet;
 }
 #endif

@@ -27,7 +27,10 @@ Cacao::VKBuffer::VKBuffer(const Ref<Device>& device, const VmaAllocator& allocat
     if (info.Usage & BufferUsageFlags::ShaderDeviceAddress)
         usageFlags |= vk::BufferUsageFlagBits::eShaderDeviceAddress;
     if (info.Usage & BufferUsageFlags::AccelerationStructure)
+    {
         usageFlags |= vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
+        usageFlags |= vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR;
+    }
     bufferInfo.usage = usageFlags;
     bufferInfo.sharingMode = vk::SharingMode::eExclusive;
     VmaAllocationCreateInfo allocInfo{};
@@ -98,6 +101,16 @@ void Cacao::VKBuffer::Flush(uint64_t offset, uint64_t size)
 {
     vmaFlushAllocation(m_allocator, m_allocation, offset, size);
 }
+Cacao::VKBuffer::~VKBuffer()
+{
+    if (m_allocator && m_allocation)
+    {
+        vmaDestroyBuffer(m_allocator, static_cast<VkBuffer>(m_buffer), m_allocation);
+        m_buffer = nullptr;
+        m_allocation = nullptr;
+    }
+}
+
 uint64_t Cacao::VKBuffer::GetDeviceAddress() const
 {
     vk::BufferDeviceAddressInfo addressInfo = vk::BufferDeviceAddressInfo().setBuffer(m_buffer);

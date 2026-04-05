@@ -1,80 +1,79 @@
-#include "../../../include/Impls/D3D12/D3D12Instance.h"
-
-#include <iostream>
-
-#include "ShaderCompiler.h"
+#include "Impls/D3D12/D3D12Instance.h"
 #include "Impls/D3D12/D3D12Adapter.h"
 #include "Impls/D3D12/D3D12Surface.h"
-#ifdef WIN32
+#include <ShaderCompiler.h>
+#include <d3d12sdklayers.h>
+
 namespace Cacao
 {
-    BackendType D3D12Instance::GetType() const
-    {
-        return BackendType::DirectX12;
-    }
+    BackendType D3D12Instance::GetType() const { return BackendType::DirectX12; }
 
     bool D3D12Instance::Initialize(const InstanceCreateInfo& createInfo)
     {
         m_createInfo = createInfo;
-        UINT flags = 0;
-        for (const auto& feature : m_createInfo.enabledFeatures)
+        UINT dxgiFlags = 0;
+
+        bool enableValidation = false;
+        for (auto f : createInfo.enabledFeatures)
         {
-            if (feature == InstanceFeature::ValidationLayer)
+            if (f == InstanceFeature::ValidationLayer) { enableValidation = true; break; }
+        }
+
+        if (enableValidation)
+        {
+            ComPtr<ID3D12Debug3> debugController;
+            if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
             {
-                flags |= DXGI_CREATE_FACTORY_DEBUG;
+                debugController->EnableDebugLayer();
+                m_debugEnabled = true;
+                dxgiFlags |= DXGI_CREATE_FACTORY_DEBUG;
             }
         }
-        auto res = CreateDXGIFactory2(flags, IID_PPV_ARGS(&m_dxgiFactory));
-        if (FAILED(res))
-        {
-            std::cerr << "Failed to create DXGI factory" << std::hex << res << std::endl;
-            return false;
-        }
-        return true;
+
+        HRESULT hr = CreateDXGIFactory2(dxgiFlags, IID_PPV_ARGS(&m_factory));
+        return SUCCEEDED(hr);
     }
 
     std::vector<Ref<Adapter>> D3D12Instance::EnumerateAdapters()
     {
-        ComPtr<IDXGIAdapter1> adapter;
         std::vector<Ref<Adapter>> adapters;
-        for (UINT i = 0; m_dxgiFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i)
+        ComPtr<IDXGIAdapter4> adapter;
+
+        for (UINT i = 0;
+             m_factory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+                                                    IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
+             ++i)
         {
-            ComPtr<IDXGIAdapter4> adapter4;
-            adapter.As<IDXGIAdapter4>(&adapter4);
-            if (!adapter4)
+            DXGI_ADAPTER_DESC3 desc;
+            adapter->GetDesc3(&desc);
+
+            if (desc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) continue;
+
+            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)))
             {
-                continue;
+                auto inst = std::dynamic_pointer_cast<D3D12Instance>(shared_from_this());
+                adapters.push_back(D3D12Adapter::Create(inst, adapter));
             }
-            adapters.push_back(D3D12Adapter::Create(shared_from_this(), adapter4));
+            adapter.Reset();
         }
         return adapters;
     }
 
     bool D3D12Instance::IsFeatureEnabled(InstanceFeature feature) const
     {
-        for (const auto& enabledFeature : m_createInfo.enabledFeatures)
-        {
-            if (enabledFeature == feature)
-            {
-                return true;
-            }
-        }
+        if (feature == InstanceFeature::ValidationLayer) return m_debugEnabled;
         return false;
     }
 
     Ref<Surface> D3D12Instance::CreateSurface(const NativeWindowHandle& windowHandle)
     {
-        return D3D12Surface::Create(shared_from_this(), windowHandle);
+        if (!windowHandle.hWnd) return nullptr;
+        auto self = std::dynamic_pointer_cast<D3D12Instance>(shared_from_this());
+        return CreateRef<D3D12Surface>(self, static_cast<HWND>(windowHandle.hWnd));
     }
 
     Ref<ShaderCompiler> D3D12Instance::CreateShaderCompiler()
     {
-        return ShaderCompiler::Create(GetType());
-    }
-
-    const ComPtr<IDXGIFactory7>& D3D12Instance::GetDXGIFactory()
-    {
-        return m_dxgiFactory;
+        return ShaderCompiler::Create(BackendType::DirectX12);
     }
 }
-#endif

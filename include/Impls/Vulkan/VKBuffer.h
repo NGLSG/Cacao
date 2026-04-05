@@ -23,6 +23,7 @@ namespace Cacao
         friend class VKDescriptorSet;
     public:
         VKBuffer(const Ref<Device>& device, const VmaAllocator& allocator, const BufferCreateInfo& info);
+        ~VKBuffer();
         static Ref<VKBuffer> Create(const Ref<Device>& device, const VmaAllocator& allocator,
                                     const BufferCreateInfo& info);
         uint64_t GetSize() const override;

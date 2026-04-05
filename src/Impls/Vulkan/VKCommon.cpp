@@ -314,98 +314,36 @@ namespace Cacao
         default: throw std::runtime_error("Unsupported sample count");
         }
     }
-    vk::PipelineStageFlags VKConverter::Convert(PipelineStage flags)
+    vk::PipelineStageFlags VKConverter::ConvertSyncScope(SyncScope flags)
     {
         vk::PipelineStageFlags vkFlags;
-        if (flags == PipelineStage::None) return vk::PipelineStageFlagBits::eTopOfPipe;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::TopOfPipe))
-            vkFlags |= vk::PipelineStageFlagBits::eTopOfPipe;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::DrawIndirect))
-            vkFlags |= vk::PipelineStageFlagBits::eDrawIndirect;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexInput))
-            vkFlags |= vk::PipelineStageFlagBits::eVertexInput;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexShader))
-            vkFlags |= vk::PipelineStageFlagBits::eVertexShader;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::GeometryShader))
-            vkFlags |= vk::PipelineStageFlagBits::eGeometryShader;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::FragmentShader))
-            vkFlags |= vk::PipelineStageFlagBits::eFragmentShader;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::EarlyFragmentTests))
-            vkFlags |= vk::PipelineStageFlagBits::eEarlyFragmentTests;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::LateFragmentTests))
-            vkFlags |= vk::PipelineStageFlagBits::eLateFragmentTests;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ColorAttachmentOutput))
-            vkFlags |= vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ComputeShader))
+        uint32_t bits = static_cast<uint32_t>(flags);
+        if (bits == 0) return vk::PipelineStageFlagBits::eTopOfPipe;
+        if (bits & static_cast<uint32_t>(SyncScope::VertexStage))
+            vkFlags |= vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eVertexInput;
+        if (bits & static_cast<uint32_t>(SyncScope::FragmentStage))
+            vkFlags |= vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        if (bits & static_cast<uint32_t>(SyncScope::ComputeStage))
             vkFlags |= vk::PipelineStageFlagBits::eComputeShader;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Transfer))
+        if (bits & static_cast<uint32_t>(SyncScope::TransferStage))
             vkFlags |= vk::PipelineStageFlagBits::eTransfer;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::BottomOfPipe))
-            vkFlags |= vk::PipelineStageFlagBits::eBottomOfPipe;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Host))
+        if (bits & static_cast<uint32_t>(SyncScope::HostStage))
             vkFlags |= vk::PipelineStageFlagBits::eHost;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllGraphics))
+        if (bits & static_cast<uint32_t>(SyncScope::AllGraphics))
             vkFlags |= vk::PipelineStageFlagBits::eAllGraphics;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllCommands))
+        if (bits & static_cast<uint32_t>(SyncScope::AllCommands))
             vkFlags |= vk::PipelineStageFlagBits::eAllCommands;
         return vkFlags;
     }
-    vk::AccessFlags VKConverter::Convert(AccessFlags flags)
+    vk::AccessFlags VKConverter::ConvertResourceStateToAccess(ResourceState state)
     {
-        vk::AccessFlags vkFlags;
-        if (flags == AccessFlags::None) return vkFlags;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndirectCommandRead))
-            vkFlags |= vk::AccessFlagBits::eIndirectCommandRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndexRead))
-            vkFlags |= vk::AccessFlagBits::eIndexRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::VertexAttributeRead))
-            vkFlags |= vk::AccessFlagBits::eVertexAttributeRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::UniformRead))
-            vkFlags |= vk::AccessFlagBits::eUniformRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::InputAttachmentRead))
-            vkFlags |= vk::AccessFlagBits::eInputAttachmentRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderRead))
-            vkFlags |= vk::AccessFlagBits::eShaderRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderWrite))
-            vkFlags |= vk::AccessFlagBits::eShaderWrite;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ColorAttachmentRead))
-            vkFlags |= vk::AccessFlagBits::eColorAttachmentRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ColorAttachmentWrite))
-            vkFlags |= vk::AccessFlagBits::eColorAttachmentWrite;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::DepthStencilAttachmentRead))
-            vkFlags |= vk::AccessFlagBits::eDepthStencilAttachmentRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::DepthStencilAttachmentWrite))
-            vkFlags |= vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferRead))
-            vkFlags |= vk::AccessFlagBits::eTransferRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferWrite))
-            vkFlags |= vk::AccessFlagBits::eTransferWrite;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::HostRead))
-            vkFlags |= vk::AccessFlagBits::eHostRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::HostWrite))
-            vkFlags |= vk::AccessFlagBits::eHostWrite;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::MemoryRead))
-            vkFlags |= vk::AccessFlagBits::eMemoryRead;
-        if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::MemoryWrite))
-            vkFlags |= vk::AccessFlagBits::eMemoryWrite;
-        return vkFlags;
+        auto mapping = VKResourceStateConvert::Convert(state);
+        return static_cast<vk::AccessFlags>(mapping.access);
     }
-    vk::ImageLayout VKConverter::Convert(ImageLayout layout)
+    vk::ImageLayout VKConverter::ConvertResourceStateToLayout(ResourceState state)
     {
-        switch (layout)
-        {
-        case ImageLayout::Undefined: return vk::ImageLayout::eUndefined;
-        case ImageLayout::General: return vk::ImageLayout::eGeneral;
-        case ImageLayout::ColorAttachment: return vk::ImageLayout::eColorAttachmentOptimal;
-        case ImageLayout::DepthStencilAttachment: return vk::ImageLayout::eDepthStencilAttachmentOptimal;
-        case ImageLayout::DepthStencilReadOnly: return vk::ImageLayout::eDepthStencilReadOnlyOptimal;
-        case ImageLayout::ShaderReadOnly: return vk::ImageLayout::eShaderReadOnlyOptimal;
-        case ImageLayout::TransferSrc: return vk::ImageLayout::eTransferSrcOptimal;
-        case ImageLayout::TransferDst: return vk::ImageLayout::eTransferDstOptimal;
-        case ImageLayout::Present: return vk::ImageLayout::ePresentSrcKHR;
-        case ImageLayout::Preinitialized: return vk::ImageLayout::ePreinitialized;
-        default: return vk::ImageLayout::eUndefined;
-        }
+        auto mapping = VKResourceStateConvert::Convert(state);
+        return static_cast<vk::ImageLayout>(mapping.layout);
     }
     vk::ImageAspectFlags VKConverter::Convert(ImageAspectFlags flags)
     {
