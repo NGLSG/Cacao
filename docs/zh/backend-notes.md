@@ -63,8 +63,19 @@
 - MSL 着色器
 - 显式资源管理，类似 DX12
 
-## WebGPU (规划中)
+## Metal
 
-- 浏览器渲染
-- WGSL 着色器
-- 桌面端: Dawn/wgpu 原生实现
+- macOS 10.15+ / iOS 13+
+- MSL 着色器（通过 Slang 编译）
+- 自动资源追踪，无需手动 barrier
+- Apple Silicon 光线追踪（macOS 11+）
+- `BackendType::Metal`
+
+## WebGPU
+
+- 跨平台（Windows/macOS/Linux/Web）
+- WGSL 着色器（通过 Slang 编译）
+- 自动资源状态管理，barrier 为空操作
+- 不支持光线追踪和 push constants
+- 桌面端通过 Dawn 或 wgpu-native 实现
+- `BackendType::WebGPU`

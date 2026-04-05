@@ -1,230 +1,187 @@
-# Cacao RHI 入门指南
-
-## 简介
-
-Cacao 是一个跨后端的图形渲染抽象层（RHI），提供统一的 C++ API 来操作不同的 GPU 后端：
-
-- **DirectX 12** — Windows 平台主力后端
-- **Vulkan** — 跨平台后端
-- **DirectX 11** / **OpenGL** — 兼容后端
-
-Cacao 支持光栅化管线、计算管线和光线追踪管线，使用 Slang 作为着色器语言。
+# 快速入门
 
 ## 环境要求
 
-| 依赖 | 最低版本 |
-|------|---------|
-| Windows | 10/11 |
-| MSVC | Visual Studio 2022 |
-| CMake | 3.20+ |
-| Vulkan SDK | 1.3+（使用 Vulkan 后端时需要）|
+- **C++ 20** 编译器 (MSVC 2022+, GCC 13+, Clang 16+)
+- **CMake 4.0+**
+- **Vulkan SDK** (可选, Vulkan 后端)
+- **Windows SDK** (DX12/DX11 后端)
+- **Xcode** (可选, Metal 后端, macOS/iOS)
+- **Dawn 或 wgpu-native** (可选, WebGPU 后端)
+- **Python 3** (OpenGL glad 加载器生成)
 
-## 构建方法
+## 构建
 
 ```bash
-# 配置（推荐使用 Ninja）
-cmake -B cmake-build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
-
-# 编译所有目标
-cmake --build cmake-build-debug
-
-# 编译单个 demo
-cmake --build cmake-build-debug --target HelloTriangle
+git clone <repo-url> Cacao && cd Cacao
+mkdir build && cd build
+cmake .. \
+  -DCACAO_BACKEND_VULKAN=ON \
+  -DCACAO_BACKEND_D3D12=ON \
+  -DCACAO_BACKEND_D3D11=ON \
+  -DCACAO_BACKEND_OPENGL=ON
+cmake --build . --target Test -j
 ```
 
-## 核心概念
+Slang 着色器编译器通过 CPM 自动下载。
 
-### Instance
+## 运行
 
-Cacao 的入口点，负责后端初始化和全局状态管理。
+通过环境变量选择后端:
+
+```bash
+# CMD
+set CACAO_BACKEND=d3d12
+Test.exe
+
+# PowerShell
+$env:CACAO_BACKEND = "vulkan"
+.\Test.exe
+```
+
+支持: `vulkan`, `d3d12`, `dx12`, `d3d11`, `dx11`, `opengl`, `gl`, `metal`, `webgpu`
+
+## 快速上手（EasyWrapper）
+
+使用 `CacaoEasy.h` 快速原型开发：
 
 ```cpp
-InstanceCreateInfo info;
-info.type = BackendType::DirectX12;
-info.applicationName = "MyApp";
-info.enabledFeatures = {InstanceFeature::ValidationLayer, InstanceFeature::Surface};
-auto instance = Instance::Create(info);
+#include "CacaoEasy.h"
+using namespace Cacao;
+
+int main() {
+    // 1. 创建上下文（自动选择最佳后端）
+    auto ctx = EasyContext::Create({
+        .appName = "MyApp",
+        .width = 1280, .height = 720,
+        .windowHandle = {.hWnd = hwnd, .hInst = hInstance}
+    });
+
+    // 2. 一行创建管线
+    auto qp = ctx->CreateQuickPipeline("sprite.slang", "mainVS", "mainPS", {
+        {0, DescriptorType::StorageBuffer, 1, ShaderStage::Vertex},
+        {1, DescriptorType::SampledImage, 1, ShaderStage::Fragment},
+        {2, DescriptorType::Sampler, 1, ShaderStage::Fragment}
+    });
+
+    // 3. 创建缓冲区
+    auto spriteBuffer = ctx->CreateStorageBuffer(spriteDataSize, spriteData);
+
+    // 4. 渲染循环
+    while (running) {
+        auto cmd = ctx->BeginFrame();
+
+        ctx->ClearAndBeginRendering(cmd, 0.1f, 0.1f, 0.2f);
+        cmd->BindGraphicsPipeline(qp.pipeline);
+        cmd->Draw(6, spriteCount, 0, 0);
+        ctx->EndRendering(cmd);
+
+        ctx->EndFrame(cmd);
+    }
+}
 ```
 
-### Adapter
+`EasyContext` 自动处理：后端选择、设备/交换链创建、同步、着色器编译、帧索引管理、资源转换、视口/裁剪设置。
 
-GPU 适配器，代表一块物理显卡。通过 `Instance::EnumerateAdapters()` 获取。
+## 最简三角形（EasyWrapper）
 
 ```cpp
-auto adapter = instance->EnumerateAdapters().front();
-std::cout << "GPU: " << adapter->GetProperties().name << std::endl;
+#include "CacaoEasy.h"
+using namespace Cacao;
+
+// triangle.slang:
+// [shader("vertex")]
+// float4 mainVS(uint vid : SV_VertexID) : SV_Position {
+//     float2 positions[3] = {float2(0, 0.5), float2(-0.5, -0.5), float2(0.5, -0.5)};
+//     return float4(positions[vid], 0, 1);
+// }
+// [shader("fragment")]
+// float4 mainPS() : SV_Target { return float4(1, 0.5, 0, 1); }
+
+int main() {
+    auto ctx = EasyContext::Create({.width=800, .height=600, .windowHandle=hwnd});
+    auto qp = ctx->CreateQuickPipeline("triangle.slang");
+
+    while (running) {
+        auto cmd = ctx->BeginFrame();
+        ctx->ClearAndBeginRendering(cmd, 0, 0, 0);
+        cmd->BindGraphicsPipeline(qp.pipeline);
+        cmd->Draw(3, 1, 0, 0);
+        ctx->EndRendering(cmd);
+        ctx->EndFrame(cmd);
+    }
+}
 ```
 
-### Device
+10 行 C++ 代码，在任意后端渲染一个三角形。
 
-逻辑设备，是创建所有 GPU 资源的工厂。
+## 第一个三角形（底层 API）
 
 ```cpp
-DeviceCreateInfo deviceCI;
-deviceCI.QueueRequests = {{QueueType::Graphics, 1, 1.0f}};
-deviceCI.CompatibleSurface = surface;
-auto device = adapter->CreateDevice(deviceCI);
+#include "Cacao.hpp"
+using namespace Cacao;
+
+int main() {
+    // 1. 创建实例
+    InstanceCreateInfo ici;
+    ici.type = BackendType::DirectX12;
+    ici.applicationName = "MyApp";
+    auto instance = Instance::Create(ici);
+
+    // 2. 选择 GPU
+    auto adapter = instance->EnumerateAdapters().front();
+
+    // 3. 创建设备
+    DeviceCreateInfo dci;
+    dci.QueueRequests = {{QueueType::Graphics, 1, 1.0f}};
+    auto device = adapter->CreateDevice(dci);
+
+    // 4. 创建交换链 (需要窗口句柄)
+    auto surface = instance->CreateSurface(windowHandle);
+    auto swapchain = device->CreateSwapchain(
+        SwapchainBuilder()
+        .SetExtent(1280, 720)
+        .SetFormat(Format::BGRA8_UNORM)
+        .SetSurface(surface)
+        .Build());
+
+    // 5. 编译着色器 (Slang)
+    auto compiler = instance->CreateShaderCompiler();
+    ShaderCreateInfo sci;
+    sci.SourcePath = "triangle.slang";
+    sci.EntryPoint = "mainVS";
+    sci.Stage = ShaderStage::Vertex;
+    auto vs = compiler->CompileOrLoad(device, sci);
+    sci.EntryPoint = "mainPS";
+    sci.Stage = ShaderStage::Fragment;
+    auto ps = compiler->CompileOrLoad(device, sci);
+
+    // 6. 创建管线
+    auto pipeline = device->CreateGraphicsPipeline(
+        GraphicsPipelineBuilder()
+        .SetShaders({vs, ps})
+        .SetTopology(PrimitiveTopology::TriangleList)
+        .AddColorFormat(swapchain->GetFormat())
+        .Build());
+
+    // 7. 渲染循环
+    auto cmd = device->CreateCommandBufferEncoder();
+    auto queue = device->GetQueue(QueueType::Graphics, 0);
+    auto sync = device->CreateSynchronization(swapchain->GetImageCount());
+
+    while (running) {
+        sync->WaitForFrame(frame);
+        int imageIndex;
+        swapchain->AcquireNextImage(sync, frame, imageIndex);
+
+        cmd->Reset(); cmd->Begin({true});
+        // ... 录制命令 ...
+        cmd->Draw(3, 1, 0, 0);
+        cmd->End();
+
+        queue->Submit(cmd, sync, frame);
+        swapchain->Present(queue, sync, frame);
+        frame = (frame + 1) % swapchain->GetImageCount();
+    }
+}
 ```
-
-### Surface & Swapchain
-
-Surface 连接窗口系统和图形后端；Swapchain 管理多个后缓冲区，实现无闪烁的帧呈现。
-
-```cpp
-auto swapchain = device->CreateSwapchain(
-    SwapchainBuilder()
-    .SetExtent(surfaceCaps.currentExtent)
-    .SetFormat(Format::BGRA8_UNORM)
-    .SetColorSpace(ColorSpace::SRGB_NONLINEAR)
-    .SetPresentMode(PresentMode::Fifo)  // 垂直同步
-    .SetMinImageCount(imageCount)
-    .SetSurface(surface)
-    .Build());
-```
-
-### CommandBufferEncoder
-
-命令编码器，录制 GPU 命令（绘制、计算、拷贝、屏障等）。
-
-```cpp
-auto cmd = device->CreateCommandBufferEncoder(CommandBufferType::Primary);
-cmd->Begin({true});
-// ... 录制命令 ...
-cmd->End();
-graphicsQueue->Submit(cmd, sync, frame);
-```
-
-### GraphicsPipeline
-
-图形管线状态对象，封装着色器、顶点格式、光栅化设置、混合模式等。
-
-```cpp
-auto pipeline = device->CreateGraphicsPipeline(
-    GraphicsPipelineBuilder()
-    .SetShaders({vs, fs})
-    .AddVertexBinding(0, sizeof(Vertex))
-    .AddVertexAttribute(0, 0, Format::RGB32_FLOAT, 0)
-    .SetTopology(PrimitiveTopology::TriangleList)
-    .SetCullMode(CullMode::None)
-    .AddColorFormat(swapchain->GetFormat())
-    .AddColorAttachmentDefault(false)
-    .SetLayout(pipelineLayout)
-    .Build());
-```
-
-### DescriptorSet
-
-资源绑定集，将 Buffer、Texture、Sampler 等资源绑定到管线的 shader 槽位。
-
-```cpp
-auto layout = device->CreateDescriptorSetLayout(
-    DescriptorSetLayoutBuilder()
-    .AddBinding(0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex)
-    .Build());
-
-auto pool = device->CreateDescriptorPool(
-    DescriptorPoolBuilder()
-    .SetMaxSets(framesInFlight)
-    .AddPoolSize(DescriptorType::UniformBuffer, framesInFlight)
-    .Build());
-
-auto descSet = pool->AllocateDescriptorSet(layout);
-descSet->WriteBuffer({0, uniformBuffer, 0, sizeof(MVPData), bufSize, DescriptorType::UniformBuffer, 0});
-descSet->Update();
-```
-
-## 渲染一帧的基本流程
-
-```
-1. sync->WaitForFrame(frame)        // 等待 GPU 完成旧帧
-2. swapchain->AcquireNextImage()     // 获取可用后缓冲区
-3. sync->ResetFrameFence(frame)      // 重置 fence
-4. cmd->Begin()                      // 开始录制命令
-5. TransitionImage → ColorAttachment // 资源状态转换
-6. BeginRendering()                  // 开始渲染通道
-7. SetViewport / SetScissor          // 设置渲染区域
-8. BindPipeline / BindVertexBuffer   // 绑定资源
-9. Draw / DrawIndexed                // 绘制
-10. EndRendering()                   // 结束渲染通道
-11. TransitionImage → Present        // 准备呈现
-12. cmd->End()                       // 结束录制
-13. queue->Submit(cmd, sync, frame)  // 提交到 GPU
-14. swapchain->Present()             // 显示到屏幕
-```
-
-## 示例一览
-
-| Demo | 描述 | 关键特性 |
-|------|------|---------|
-| **HelloTriangle** | 彩色三角形 | 最简光栅化，顶点颜色插值 |
-| **Scene3D** | 旋转彩色立方体 | MVP 矩阵，UniformBuffer，索引绘制 |
-| **TexturedQuad** | 纹理四边形 | 纹理加载，采样器，SampledImage |
-| **ComputeDemo** | 计算管线 | Compute Shader，SSBO |
-| **ShadowMap** | 阴影贴图 | 多 Pass 渲染，深度纹理 |
-| **CornellBox** | 路径追踪 | 光线追踪管线，加速结构，SBT |
-
-## Shader 编写（Slang）
-
-Cacao 使用 [Slang](https://shader-slang.com/) 作为着色器语言，语法与 HLSL 高度兼容。
-
-### 入口点标记
-
-```hlsl
-[shader("vertex")]
-VSOutput mainVS(VSInput input) { ... }
-
-[shader("fragment")]
-float4 mainPS(VSOutput input) : SV_Target { ... }
-```
-
-### 顶点语义
-
-C++ 端 `AddVertexAttribute` 的 `semanticName` 默认为 `"TEXCOORD"`。如需自定义：
-
-```cpp
-// C++ 端指定 POSITION 语义
-.AddVertexAttribute(0, 0, Format::RGB32_FLOAT, 0, "POSITION", 0)
-```
-
-```hlsl
-// Shader 端匹配
-float3 position : POSITION;
-```
-
-### 资源绑定
-
-```hlsl
-// Uniform Buffer (cbuffer)
-[[vk::binding(0, 0)]]
-cbuffer MVPBuffer : register(b0) { float4x4 mvp; };
-
-// Storage Buffer
-[[vk::binding(0, 0)]]
-StructuredBuffer<MyStruct> data : register(t0);
-
-// 纹理 + 采样器
-[[vk::binding(1, 0)]]
-Texture2D myTexture : register(t1);
-[[vk::binding(2, 0)]]
-SamplerState mySampler : register(s2);
-```
-
-### 矩阵约定
-
-Cacao 使用列优先（column-major）矩阵。在 Slang 中用行向量乘矩阵：
-
-```hlsl
-output.position = mul(float4(pos, 1.0), mvpMatrix);
-```
-
-## 跨后端注意事项
-
-| 项目 | DX12 | Vulkan |
-|------|------|--------|
-| Swapchain 格式 | `BGRA8_UNORM` 常用 | `BGRA8_UNORM` 或 `RGBA8_UNORM` |
-| Shader 字节码 | DXIL | SPIR-V |
-| Y 轴方向 | 框架自动统一 | 框架自动统一 |
-| 验证层 | D3D12 Debug Layer | Vulkan Validation Layer |
-| 后端选择 | `BackendType::DirectX12` | `BackendType::Vulkan` |
-
-Cacao 的设计目标是让应用代码完全后端无关，只需在 `InstanceCreateInfo::type` 中选择后端即可。Shader 用 Slang 编写，框架自动编译为对应后端的字节码。

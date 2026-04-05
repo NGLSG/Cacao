@@ -6,6 +6,8 @@ Cacao is a cross-backend graphics Rendering Hardware Interface (RHI) providing a
 
 - **DirectX 12** — Primary backend on Windows
 - **Vulkan** — Cross-platform backend
+- **Metal** — macOS/iOS backend
+- **WebGPU** — Web and cross-platform backend (Dawn/wgpu-native)
 - **DirectX 11** / **OpenGL** — Compatibility backends
 
 Cacao supports rasterization pipelines, compute pipelines, and ray tracing pipelines, using Slang as the shading language.
@@ -219,12 +221,14 @@ output.position = mul(float4(pos, 1.0), mvpMatrix);
 
 ## Cross-Backend Notes
 
-| Item | DX12 | Vulkan |
-|------|------|--------|
-| Swapchain Format | `BGRA8_UNORM` common | `BGRA8_UNORM` or `RGBA8_UNORM` |
-| Shader Bytecode | DXIL | SPIR-V |
-| Y-axis Direction | Unified by framework | Unified by framework |
-| Validation | D3D12 Debug Layer | Vulkan Validation Layer |
-| Backend Selection | `BackendType::DirectX12` | `BackendType::Vulkan` |
+| Item | DX12 | Vulkan | Metal | WebGPU |
+|------|------|--------|-------|--------|
+| Swapchain Format | `BGRA8_UNORM` | `BGRA8_UNORM` / `RGBA8_UNORM` | `BGRA8_UNORM` | `BGRA8_UNORM` |
+| Shader Bytecode | DXIL | SPIR-V | MSL (Metal Shading Language) | WGSL |
+| Y-axis Direction | Unified by framework | Unified by framework | Unified by framework | Unified by framework |
+| Validation | D3D12 Debug Layer | Vulkan Validation Layer | Metal API Validation | WebGPU Error Callback |
+| Backend Selection | `BackendType::DirectX12` | `BackendType::Vulkan` | `BackendType::Metal` | `BackendType::WebGPU` |
+| Ray Tracing | DXR 1.1 | VK_KHR_ray_tracing | Metal RT (macOS 11+) | Not supported |
+| Platform | Windows | Windows/Linux/macOS | macOS/iOS | All (via Dawn) |
 
 Cacao is designed to make application code completely backend-agnostic. Simply choose the backend in `InstanceCreateInfo::type`. Shaders are written in Slang, and the framework automatically compiles them to the appropriate bytecode for the selected backend.

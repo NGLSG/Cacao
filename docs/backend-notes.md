@@ -234,6 +234,78 @@ void* handle = cmd->GetNativeHandle();
 #ifdef CACAO_BACKEND_OPENGL
     // OpenGL-specific code
 #endif
+
+#ifdef CACAO_BACKEND_METAL
+    // Metal-specific code
+#endif
+
+#ifdef CACAO_BACKEND_WEBGPU
+    // WebGPU-specific code
+#endif
 ```
 
 These macros are defined by CMake and propagated via `target_compile_definitions`.
+
+## Metal
+
+**CMake option**: `CACAO_BACKEND_METAL=ON`
+**Requires**: macOS 10.15+ / iOS 13+, Xcode
+
+### Features
+
+- Native Apple GPU support with optimal performance
+- Ray tracing on Apple Silicon (macOS 11+) via Metal RT
+- Automatic resource hazard tracking (no manual barriers needed)
+- Tile-based deferred rendering optimization on Apple Silicon
+- Metal Performance Shaders for optimized operations
+- Shader compilation to Metal Shading Language (MSL) via Slang
+
+### Metal-Specific Behavior
+
+- **No explicit barriers**: Metal tracks resource usage automatically; `TransitionImage()` and `PipelineBarrier()` are no-ops
+- **Command buffer model**: Uses `MTLCommandBuffer` from `MTLCommandQueue`; command buffers are single-use
+- **Descriptor model**: Metal uses argument buffers instead of descriptor sets; Cacao maps DescriptorSet to argument buffers
+- **Shader format**: Compiles to Metal IR via Slang, then to GPU binary at runtime
+- **Memory model**: Metal manages memory automatically with `MTLResourceOptions` mapping from `BufferMemoryUsage`
+- **Swapchain**: Uses `CAMetalLayer` for drawable management
+- **Push constants**: Not natively supported; emulated via inline uniform buffers
+
+### Limitations
+
+- macOS/iOS only
+- No geometry/tessellation shaders
+- Limited compute shader shared memory compared to Vulkan/DX12
+- Pipeline cache serialization not exposed
+
+## WebGPU
+
+**CMake option**: `CACAO_BACKEND_WEBGPU=ON`
+**Requires**: Dawn or wgpu-native
+
+### Features
+
+- Cross-platform (Windows, macOS, Linux, Web)
+- Automatic resource state tracking (no manual barriers)
+- Safe API with validation built-in
+- Async operations with callback model
+- Compatible with web browsers via Emscripten
+
+### WebGPU-Specific Behavior
+
+- **No explicit barriers**: WebGPU handles all resource transitions automatically; barrier functions are no-ops
+- **No push constants**: Must use uniform buffers instead
+- **Bind group model**: WebGPU uses bind groups (mapped from DescriptorSet) and bind group layouts
+- **Shader format**: Compiles to WGSL via Slang
+- **Buffer mapping**: Async-only mapping model; Cacao provides synchronous wrappers
+- **No buffer device address**: Not exposed in WebGPU
+- **Queue model**: Single queue per device; all operations go through the same queue
+- **Error handling**: Uses uncaptured error callback for validation errors
+
+### Limitations
+
+- No ray tracing support
+- No mesh shaders
+- No geometry/tessellation shaders
+- Limited storage buffer features
+- No pipeline statistics queries
+- Max bind groups limited (typically 4)
