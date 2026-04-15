@@ -184,3 +184,13 @@ if(WIN32 AND CACAO_BACKEND_D3D12)
     add_executable(DX12Benchmark DX12Benchmark.cpp)
     target_link_libraries(DX12Benchmark PRIVATE d3d12 dxgi d3dcompiler)
 endif()
+
+# ==================== CTest Conformance Tests ====================
+enable_testing()
+add_executable(ConformanceTest tests/conformance_test.cpp)
+target_link_libraries(ConformanceTest PRIVATE Cacao)
+add_custom_command(TARGET ConformanceTest POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/sprite.slang"
+    "$<TARGET_FILE_DIR:ConformanceTest>/sprite.slang")
+add_test(NAME ConformanceTest COMMAND ConformanceTest)

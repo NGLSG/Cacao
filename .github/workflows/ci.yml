@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  windows-full:
+    name: Windows (Vulkan + D3D12 + D3D11)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.0"
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2.1
+        with:
+          version: latest
+          cache: true
+
+      - name: Cache CPM packages
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: cpm-win-full-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-win-full-
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCACAO_BACKEND_VULKAN=ON
+          -DCACAO_BACKEND_D3D12=ON
+          -DCACAO_BACKEND_D3D11=ON
+          -DCACAO_BACKEND_OPENGL=OFF
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload Cacao.dll
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cacao-windows-full
+          path: build/Cacao.dll
+
+  windows-opengl:
+    name: Windows (OpenGL only)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.0"
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Cache CPM packages
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: cpm-win-gl-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-win-gl-
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCACAO_BACKEND_VULKAN=OFF
+          -DCACAO_BACKEND_D3D12=OFF
+          -DCACAO_BACKEND_D3D11=OFF
+          -DCACAO_BACKEND_OPENGL=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload Cacao.dll
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cacao-windows-opengl
+          path: build/Cacao.dll
+
+  linux:
+    name: Linux (Vulkan + OpenGL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.0"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build \
+            libvulkan-dev vulkan-validationlayers \
+            libgl-dev libglx-dev mesa-common-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+
+      - name: Cache CPM packages
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: cpm-linux-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: cpm-linux-
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCACAO_BACKEND_VULKAN=ON
+          -DCACAO_BACKEND_D3D12=OFF
+          -DCACAO_BACKEND_D3D11=OFF
+          -DCACAO_BACKEND_OPENGL=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload libCacao.so
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cacao-linux
+          path: build/libCacao.so

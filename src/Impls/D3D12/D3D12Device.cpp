@@ -15,6 +15,8 @@
 #include "Impls/D3D12/D3D12AccelerationStructure.h"
 #include "Impls/D3D12/D3D12RayTracingPipeline.h"
 #include "Impls/D3D12/D3D12ShaderBindingTable.h"
+#include "Impls/D3D12/D3D12PipelineCache.h"
+#include "Impls/D3D12/D3D12TimelineSemaphore.h"
 #include <fstream>
 
 namespace Cacao
@@ -259,7 +261,7 @@ namespace Cacao
 
     Ref<PipelineCache> D3D12Device::CreatePipelineCache(std::span<const uint8_t> initialData)
     {
-        return nullptr;
+        return std::make_shared<D3D12PipelineCache>(shared_from_this(), initialData);
     }
 
     Ref<GraphicsPipeline> D3D12Device::CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& info)
@@ -297,5 +299,10 @@ namespace Cacao
         return std::make_shared<D3D12ShaderBindingTable>(
             shared_from_this(), d3dPipeline->GetStateObject(),
             rayGenCount, missCount, hitGroupCount, callableCount);
+    }
+
+    Ref<TimelineSemaphore> D3D12Device::CreateTimelineSemaphore(uint64_t initialValue)
+    {
+        return std::make_shared<D3D12TimelineSemaphore>(shared_from_this(), initialValue);
     }
 }

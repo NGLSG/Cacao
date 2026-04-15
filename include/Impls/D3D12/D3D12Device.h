@@ -86,6 +86,7 @@ namespace Cacao
         friend class D3D12DescriptorSetLayout;
         friend class D3D12AccelerationStructure;
         friend class D3D12RayTracingPipeline;
+        friend class D3D12TimelineSemaphore;
 
         ID3D12Device5* GetHandle() const { return m_device.Get(); }
         D3D12MA::Allocator* GetAllocator() const { return m_allocator; }
@@ -132,6 +133,8 @@ namespace Cacao
         Ref<ShaderBindingTable> CreateShaderBindingTable(const Ref<RayTracingPipeline>& pipeline,
             uint32_t rayGenCount, uint32_t missCount,
             uint32_t hitGroupCount, uint32_t callableCount) override;
+
+        Ref<TimelineSemaphore> CreateTimelineSemaphore(uint64_t initialValue = 0) override;
     };
 }
 

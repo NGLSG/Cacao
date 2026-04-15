@@ -124,9 +124,9 @@ static void MakePerspective(float* out, float fovY, float aspect, float zn, floa
     memset(out, 0, 64);
     out[0] = 1.0f / (aspect * tanHalf);
     out[5] = 1.0f / tanHalf;
-    out[10] = -(zf + zn) / (zf - zn);
+    out[10] = -zf / (zf - zn);
     out[11] = -1.0f;
-    out[14] = -2.0f * zf * zn / (zf - zn);
+    out[14] = -zf * zn / (zf - zn);
 }
 
 static void InvertMatrix4(const float* m, float* out)

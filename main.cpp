@@ -121,6 +121,7 @@ Ref<Texture> LoadTextureFromFile(const Ref<Device>& device, const Ref<CommandBuf
         memcpy(data + row * uploadRowPitch, pixels + row * naturalRowPitch, naturalRowPitch);
     }
     stagingBuffer->Flush();
+    stagingBuffer->Unmap();
 
     stbi_image_free(pixels);
 
@@ -332,6 +333,7 @@ int main()
             void* data = stagingBuffer->Map();
             memcpy(data, whitePixels.data(), whitePixels.size());
             stagingBuffer->Flush();
+            stagingBuffer->Unmap();
 
             uploadCmd->Reset();
             uploadCmd->Begin({true});

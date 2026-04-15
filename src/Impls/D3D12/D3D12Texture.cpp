@@ -27,11 +27,25 @@ namespace Cacao
         if (info.Usage & TextureUsageFlags::Storage)
             desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
+        bool depthSampled = (info.Usage & TextureUsageFlags::DepthStencilAttachment)
+                         && (info.Usage & TextureUsageFlags::Sampled);
+        if (depthSampled)
+        {
+            if (desc.Format == DXGI_FORMAT_D32_FLOAT)
+                desc.Format = DXGI_FORMAT_R32_TYPELESS;
+            else if (desc.Format == DXGI_FORMAT_D24_UNORM_S8_UINT)
+                desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+            else if (desc.Format == DXGI_FORMAT_D16_UNORM)
+                desc.Format = DXGI_FORMAT_R16_TYPELESS;
+            else if (desc.Format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT)
+                desc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+        }
+
         D3D12_CLEAR_VALUE* clearValue = nullptr;
         D3D12_CLEAR_VALUE cv = {};
         if (info.Usage & TextureUsageFlags::DepthStencilAttachment)
         {
-            cv.Format = desc.Format;
+            cv.Format = ToDXGIFormat(info.Format);
             cv.DepthStencil = {1.0f, 0};
             clearValue = &cv;
         }
@@ -100,7 +114,15 @@ namespace Cacao
         {
             m_srvHandle = d3dDevice->AllocateCbvSrvUav();
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-            srvDesc.Format = ToDXGIFormat(desc.FormatOverride != Format::UNDEFINED ? desc.FormatOverride : texture->GetFormat());
+            DXGI_FORMAT srvFormat = ToDXGIFormat(desc.FormatOverride != Format::UNDEFINED ? desc.FormatOverride : texture->GetFormat());
+            if (isDepth)
+            {
+                if (srvFormat == DXGI_FORMAT_D32_FLOAT)       srvFormat = DXGI_FORMAT_R32_FLOAT;
+                else if (srvFormat == DXGI_FORMAT_D24_UNORM_S8_UINT) srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+                else if (srvFormat == DXGI_FORMAT_D16_UNORM)  srvFormat = DXGI_FORMAT_R16_UNORM;
+                else if (srvFormat == DXGI_FORMAT_D32_FLOAT_S8X24_UINT) srvFormat = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+            }
+            srvDesc.Format = srvFormat;
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Texture2D.MostDetailedMip = desc.BaseMipLevel;
@@ -119,7 +141,11 @@ namespace Cacao
         if (isDepth && (usage & TextureUsageFlags::DepthStencilAttachment))
         {
             m_dsvHandle = d3dDevice->AllocateDSV();
-            device->CreateDepthStencilView(d3dTex->GetHandle(), nullptr, m_dsvHandle);
+            D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+            dsvDesc.Format = ToDXGIFormat(texture->GetFormat());
+            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+            dsvDesc.Texture2D.MipSlice = 0;
+            device->CreateDepthStencilView(d3dTex->GetHandle(), &dsvDesc, m_dsvHandle);
             m_hasDSV = true;
         }
 
